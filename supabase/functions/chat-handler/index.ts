@@ -7,7 +7,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-// Create PostgreSQL client for Google Cloud
+// Create PostgreSQL client for Google Cloud with TLS
 async function getDbClient(): Promise<Client> {
   const hostname = Deno.env.get('DB_HOST')!
   const port = parseInt(Deno.env.get('DB_PORT') || '5432')
@@ -25,8 +25,8 @@ async function getDbClient(): Promise<Client> {
     database,
     tls: {
       enabled: true,
-      enforce: false,  // Allow connection even if TLS negotiation fails initially
-      caCertificates: [],  // Empty array = accept any certificate (self-signed OK)
+      enforce: true,  // Force TLS, don't fall back to non-TLS
+      caCertificates: [],  // Accept any certificate (self-signed)
     },
   })
 
