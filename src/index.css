@@ -1,0 +1,123 @@
+@import "tailwindcss";
+@plugin "@tailwindcss/typography";
+
+@theme {
+  --color-background: hsl(210 40% 98%);
+  --color-foreground: hsl(222 47% 11%);
+  --color-card: hsl(0 0% 100%);
+  --color-card-foreground: hsl(222 47% 11%);
+  --color-popover: hsl(0 0% 100%);
+  --color-popover-foreground: hsl(222 47% 11%);
+  --color-primary: hsl(215 100% 26%);
+  --color-primary-foreground: hsl(210 40% 98%);
+  --color-secondary: hsl(43 96% 56%);
+  --color-secondary-foreground: hsl(222 47% 11%);
+  --color-muted: hsl(210 40% 96%);
+  --color-muted-foreground: hsl(215 16% 47%);
+  --color-accent: hsl(210 40% 96%);
+  --color-accent-foreground: hsl(222 47% 11%);
+  --color-destructive: hsl(0 84% 60%);
+  --color-destructive-foreground: hsl(210 40% 98%);
+  --color-border: hsl(214 32% 91%);
+  --color-input: hsl(214 32% 91%);
+  --color-ring: hsl(215 100% 26%);
+  --color-success: hsl(142 71% 45%);
+  --color-success-foreground: hsl(210 40% 98%);
+  --color-warning: hsl(24 95% 53%);
+  --color-warning-foreground: hsl(210 40% 98%);
+  --radius-sm: 0.25rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+}
+
+@layer base {
+  :root {
+    --background: 210 40% 98%;
+    --foreground: 222 47% 11%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+    --primary: 215 100% 26%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 43 96% 56%;
+    --secondary-foreground: 222 47% 11%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 47%;
+    --accent: 210 40% 96%;
+    --accent-foreground: 222 47% 11%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 215 100% 26%;
+    --radius: 0.5rem;
+    --success: 142 71% 45%;
+    --success-foreground: 210 40% 98%;
+    --warning: 24 95% 53%;
+    --warning-foreground: 210 40% 98%;
+  }
+
+  .dark {
+    --background: 222 47% 11%;
+    --foreground: 210 40% 98%;
+    --card: 222 47% 11%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222 47% 11%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 215 100% 50%;
+    --primary-foreground: 222 47% 11%;
+    --secondary: 43 96% 56%;
+    --secondary-foreground: 222 47% 11%;
+    --muted: 217 33% 17%;
+    --muted-foreground: 215 20% 65%;
+    --accent: 217 33% 17%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217 33% 17%;
+    --input: 217 33% 17%;
+    --ring: 215 100% 50%;
+    --success: 142 71% 45%;
+    --success-foreground: 210 40% 98%;
+    --warning: 24 95% 53%;
+    --warning-foreground: 210 40% 98%;
+  }
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+/* Chat message prose styling for better contrast */
+.chat-prose {
+  --tw-prose-body: hsl(222 47% 11%);
+  --tw-prose-headings: hsl(222 47% 11%);
+  --tw-prose-bold: hsl(222 47% 11%);
+  --tw-prose-links: hsl(215 100% 26%);
+  --tw-prose-counters: hsl(215 16% 47%);
+  --tw-prose-bullets: hsl(215 16% 47%);
+}
+
+.chat-prose p,
+.chat-prose li,
+.chat-prose strong,
+.chat-prose h1,
+.chat-prose h2,
+.chat-prose h3,
+.chat-prose h4 {
+  color: hsl(222 47% 11%);
+}
+
+.chat-prose strong {
+  font-weight: 600;
+}
