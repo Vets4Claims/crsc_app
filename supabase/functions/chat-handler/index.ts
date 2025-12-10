@@ -17,14 +17,22 @@ async function getDbClient(): Promise<Client> {
 
   console.log(`[chat-handler] Connecting to PostgreSQL at ${hostname}:${port}/${database} as ${user}`)
 
-  // Build connection string with sslmode=disable
-  const connectionString = `postgres://${user}:${encodeURIComponent(password)}@${hostname}:${port}/${database}?sslmode=disable`
-
-  const client = new Client(connectionString)
+  const client = new Client({
+    hostname,
+    port,
+    user,
+    password,
+    database,
+    tls: {
+      enabled: true,
+      enforce: false,  // Allow connection even if TLS negotiation fails initially
+      caCertificates: [],  // Empty array = accept any certificate (self-signed OK)
+    },
+  })
 
   try {
     await client.connect()
-    console.log('[chat-handler] Successfully connected to PostgreSQL')
+    console.log('[chat-handler] Successfully connected to PostgreSQL with TLS')
     return client
   } catch (error) {
     console.error('[chat-handler] Failed to connect to PostgreSQL:', error)
