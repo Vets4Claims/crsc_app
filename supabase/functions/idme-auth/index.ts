@@ -6,7 +6,8 @@ const corsHeaders = {
 }
 
 // ID.me OAuth configuration
-const IDME_AUTHORIZATION_URL = 'https://api.id.me/oauth/authorize'
+// Using groups.id.me for group verification (military/veteran)
+const IDME_AUTHORIZATION_URL = 'https://groups.id.me/oauth/authorize'
 
 interface AuthRequest {
   userId: string
@@ -47,11 +48,12 @@ serve(async (req: Request) => {
     const state = btoa(JSON.stringify({ userId, csrf: randomString }))
 
     // Build the ID.me authorization URL
+    // Scopes: employee, government, military - for veteran verification
     const params = new URLSearchParams({
       client_id: clientId,
       redirect_uri: redirectUri,
       response_type: 'code',
-      scope: 'military', // Request military verification scope
+      scopes: 'employee,government,military',
       state: state,
     })
 
