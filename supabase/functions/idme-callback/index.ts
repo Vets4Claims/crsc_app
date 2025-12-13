@@ -48,9 +48,16 @@ interface IdmeAttribute {
   value: string
 }
 
+interface IdmeGroupStatus {
+  group: string
+  subgroups?: string[]
+  verified: boolean
+}
+
 interface IdmeAttributesResponse {
   attributes?: IdmeAttribute[]
-  status?: IdmeAttribute[]
+  // Status can be either the old format (IdmeAttribute[]) or new group format (IdmeGroupStatus[])
+  status?: IdmeAttribute[] | IdmeGroupStatus[]
   // Group verification response fields
   verified?: boolean
   affiliation?: string
@@ -224,20 +231,40 @@ serve(async (req: Request) => {
     }
 
     // Look for military-related status in status array
+    // Status can be in two formats:
+    // 1. Group format: { group: "military", subgroups: ["Retiree"], verified: true }
+    // 2. Old format: { handle: "...", name: "...", value: "..." }
     for (const status of attributesData.status || []) {
-      if (status.handle === 'uuid') {
-        idmeUuid = status.value
+      // Check for group verification format (from groups.id.me)
+      const groupStatus = status as IdmeGroupStatus
+      if (groupStatus.group && groupStatus.verified === true) {
+        const groupName = groupStatus.group.toLowerCase()
+        if (groupName === 'military' || groupName === 'veteran' ||
+            groupName.includes('military') || groupName.includes('veteran')) {
+          isVerifiedVeteran = true
+          // Include subgroups in status (e.g., "military - Retiree")
+          militaryStatus = groupStatus.subgroups && groupStatus.subgroups.length > 0
+            ? `${groupStatus.group} - ${groupStatus.subgroups.join(', ')}`
+            : groupStatus.group
+          console.log('[idme-callback] Group status verified:', militaryStatus)
+        }
       }
-      // Check for military verification statuses
-      const handle = status.handle?.toLowerCase() || ''
-      const value = status.value?.toLowerCase() || ''
+
+      // Check for old attribute format
+      const attrStatus = status as IdmeAttribute
+      if (attrStatus.handle === 'uuid') {
+        idmeUuid = attrStatus.value
+      }
+      // Check for military verification statuses in old format
+      const handle = attrStatus.handle?.toLowerCase() || ''
+      const value = attrStatus.value?.toLowerCase() || ''
       if (handle.includes('military') || handle.includes('veteran') ||
           handle === 'group' || handle === 'affiliation') {
         if (value === 'true' || value === 'verified' ||
             value.includes('military') || value.includes('veteran')) {
           isVerifiedVeteran = true
-          militaryStatus = status.value || status.handle
-          console.log('[idme-callback] Status verified:', militaryStatus)
+          militaryStatus = attrStatus.value || attrStatus.handle
+          console.log('[idme-callback] Attribute status verified:', militaryStatus)
         }
       }
     }
