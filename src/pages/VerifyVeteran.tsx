@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useNavigate, useSearchParams, Link } from 'react-router-dom'
 import { useAuthContext } from '@/contexts/AuthContext'
 import { getVerificationStatus } from '@/lib/api'
@@ -22,7 +22,6 @@ export default function VerifyVeteran() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const { user, refreshVerificationStatus } = useAuthContext()
-  const idmeButtonRef = useRef<HTMLDivElement>(null)
 
   const [isCheckingStatus, setIsCheckingStatus] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -87,23 +86,6 @@ export default function VerifyVeteran() {
     return `https://groups.id.me/?${params.toString()}`
   }, [user?.id])
 
-  // Load ID.me button script
-  useEffect(() => {
-    if (isVerified || isCheckingStatus) return
-
-    // Load the ID.me wallet button script for styling
-    const script = document.createElement('script')
-    script.src = 'https://s3.amazonaws.com/idme/developer/idme-buttons/assets/js/idme-wallet-button.js'
-    script.async = true
-    document.body.appendChild(script)
-
-    return () => {
-      const existingScript = document.querySelector(`script[src="${script.src}"]`)
-      if (existingScript) {
-        document.body.removeChild(existingScript)
-      }
-    }
-  }, [isVerified, isCheckingStatus])
 
   const handleVerifyClick = () => {
     const authUrl = getIdmeAuthUrl()
@@ -221,22 +203,18 @@ export default function VerifyVeteran() {
               </div>
 
               <div className="flex flex-col gap-3 items-center">
-                {/* ID.me Official Button Widget */}
-                <div
-                  ref={idmeButtonRef}
+                {/* ID.me Official Button */}
+                <button
                   onClick={handleVerifyClick}
-                  className="cursor-pointer"
+                  className="cursor-pointer hover:opacity-90 transition-opacity focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-600 rounded"
+                  aria-label="Sign in with ID.me"
                 >
-                  <span
-                    id="idme-wallet-button"
-                    data-scope={IDME_SCOPES}
-                    data-client-id={IDME_CLIENT_ID}
-                    data-redirect={IDME_REDIRECT_URI}
-                    data-response="code"
-                    data-text="Verify your military status with ID.me"
-                    data-show-verify="true"
+                  <img
+                    src="/single-green.svg"
+                    alt="Sign in with ID.me"
+                    className="h-12"
                   />
-                </div>
+                </button>
 
                 <Button
                   variant="ghost"
