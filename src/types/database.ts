@@ -18,6 +18,7 @@ export type Database = {
           last_login: string | null
           profile_completed: boolean
           packet_status: string
+          is_admin: boolean
         }
         Insert: {
           id?: string
@@ -27,6 +28,7 @@ export type Database = {
           last_login?: string | null
           profile_completed?: boolean
           packet_status?: string
+          is_admin?: boolean
         }
         Update: {
           id?: string
@@ -36,6 +38,7 @@ export type Database = {
           last_login?: string | null
           profile_completed?: boolean
           packet_status?: string
+          is_admin?: boolean
         }
         Relationships: []
       }

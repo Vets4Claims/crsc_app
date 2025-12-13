@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import type { User, Session } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
-import { createUserProfile, createAuditLog, getVerificationStatus } from '@/lib/api'
+import { createUserProfile, createAuditLog, getVerificationStatus, getUserProfile } from '@/lib/api'
 
 interface AuthState {
   user: User | null
@@ -10,6 +10,7 @@ interface AuthState {
   error: string | null
   veteranVerified: boolean
   veteranVerifiedAt: string | null
+  isAdmin: boolean
 }
 
 export function useAuth() {
@@ -20,6 +21,7 @@ export function useAuth() {
     error: null,
     veteranVerified: false,
     veteranVerifiedAt: null,
+    isAdmin: false,
   })
 
   // Function to check verification status (non-blocking)
@@ -35,6 +37,21 @@ export function useAuth() {
       }
     } catch (err) {
       console.error('Failed to check verification status:', err)
+    }
+  }, [])
+
+  // Function to check admin status (non-blocking)
+  const checkAdminStatus = useCallback(async (userId: string) => {
+    try {
+      const result = await getUserProfile(userId)
+      if (result.data) {
+        setState((prev) => ({
+          ...prev,
+          isAdmin: result.data?.is_admin ?? false,
+        }))
+      }
+    } catch (err) {
+      console.error('Failed to check admin status:', err)
     }
   }, [])
 
@@ -56,9 +73,10 @@ export function useAuth() {
           error: error?.message ?? null,
         }))
 
-        // Check verification status in background (non-blocking)
+        // Check verification and admin status in background (non-blocking)
         if (session?.user) {
           checkVerificationStatus(session.user.id)
+          checkAdminStatus(session.user.id)
         }
       } catch (err) {
         if (!isMounted) return
@@ -91,6 +109,7 @@ export function useAuth() {
           createUserProfile(session.user.id, session.user.email!).catch(console.error)
           createAuditLog(session.user.id, 'sign_in', 'auth').catch(console.error)
           checkVerificationStatus(session.user.id)
+          checkAdminStatus(session.user.id)
         }
 
         if (event === 'SIGNED_OUT') {
@@ -99,6 +118,7 @@ export function useAuth() {
             ...prev,
             veteranVerified: false,
             veteranVerifiedAt: null,
+            isAdmin: false,
           }))
         }
       }
@@ -108,7 +128,7 @@ export function useAuth() {
       isMounted = false
       subscription.unsubscribe()
     }
-  }, [checkVerificationStatus])
+  }, [checkVerificationStatus, checkAdminStatus])
 
   const signUp = useCallback(async (email: string, password: string) => {
     setState((prev) => ({ ...prev, loading: true, error: null }))

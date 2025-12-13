@@ -9,6 +9,7 @@ interface AuthContextValue {
   error: string | null
   isAuthenticated: boolean
   isVeteranVerified: boolean
+  isAdmin: boolean
   veteranVerified: boolean
   veteranVerifiedAt: string | null
   signUp: (email: string, password: string) => Promise<{ success: boolean; error?: string; user?: User | null }>
