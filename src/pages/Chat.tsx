@@ -74,9 +74,10 @@ interface MessageBubbleProps {
   userId?: string
   onExtractionComplete?: (data: ExtractedDocumentData, documentType: DocumentType) => void
   uploadCompleted?: Set<string>
+  showDropzone?: boolean // Only true for the most recent message with upload request
 }
 
-function MessageBubble({ message, userId, onExtractionComplete, uploadCompleted }: MessageBubbleProps) {
+function MessageBubble({ message, userId, onExtractionComplete, uploadCompleted, showDropzone = false }: MessageBubbleProps) {
   const isUser = message.role === 'user'
   const isSystem = message.role === 'system'
 
@@ -132,8 +133,8 @@ function MessageBubble({ message, userId, onExtractionComplete, uploadCompleted 
           </p>
         </div>
 
-        {/* Render dropzones for upload requests (only for assistant messages that haven't been completed) */}
-        {!isUser && uploadRequests.length > 0 && !hasCompletedUploads && userId && onExtractionComplete && (
+        {/* Render dropzones only for the most recent message with upload request and not completed */}
+        {showDropzone && !isUser && uploadRequests.length > 0 && !hasCompletedUploads && userId && onExtractionComplete && (
           <div className="mt-2">
             {uploadRequests.map((docType) => (
               <ChatDropzone
@@ -430,15 +431,28 @@ export default function Chat() {
         {/* Messages */}
         <div className="flex-1 overflow-y-auto px-4 py-4">
           <div className="space-y-4">
-            {messages.map((message) => (
-              <MessageBubble
-                key={message.id}
-                message={message}
-                userId={user?.id}
-                onExtractionComplete={handleExtractionComplete}
-                uploadCompleted={completedUploads}
-              />
-            ))}
+            {messages.map((message) => {
+              // Find the most recent assistant message with an upload request that hasn't been completed
+              const lastUploadRequestIndex = [...messages].reverse().findIndex(
+                (m) => m.role === 'assistant' && UPLOAD_REQUEST_REGEX.test(m.content) &&
+                  !Array.from(completedUploads).some(id => id.startsWith(`${m.id}-`))
+              )
+              // Reset regex lastIndex
+              UPLOAD_REQUEST_REGEX.lastIndex = 0
+              const showDropzoneForThisMessage = lastUploadRequestIndex !== -1 &&
+                messages[messages.length - 1 - lastUploadRequestIndex]?.id === message.id
+
+              return (
+                <MessageBubble
+                  key={message.id}
+                  message={message}
+                  userId={user?.id}
+                  onExtractionComplete={handleExtractionComplete}
+                  uploadCompleted={completedUploads}
+                  showDropzone={showDropzoneForThisMessage}
+                />
+              )
+            })}
 
             {isLoading && (
               <div className="flex gap-3">

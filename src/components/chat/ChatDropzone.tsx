@@ -70,6 +70,15 @@ export default function ChatDropzone({
           continue
         }
 
+        // Check for very large files that may timeout during extraction
+        const fileSizeMB = fileStatus.file.size / (1024 * 1024)
+        if (fileSizeMB > 30) {
+          setFiles(prev => prev.map((f, idx) =>
+            idx === i ? { ...f, status: 'error', error: `File too large for AI extraction (${fileSizeMB.toFixed(1)}MB). Please use files under 30MB or upload directly to Documents section.` } : f
+          ))
+          continue
+        }
+
         // Update status to extracting
         setFiles(prev => prev.map((f, idx) =>
           idx === i ? { ...f, status: 'extracting' } : f
@@ -247,7 +256,7 @@ export default function ChatDropzone({
                   Drop files here or click to browse
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  PDF or images (max 50MB each, up to {MAX_FILES} files)
+                  PDF or images (max 30MB for AI extraction, up to {MAX_FILES} files)
                 </p>
               </div>
             </>
