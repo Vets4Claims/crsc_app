@@ -99,7 +99,7 @@ To be eligible for CRSC, a veteran must:
 
 Be conversational but efficient. Ask one or two related questions at a time. Validate information before moving to the next section. If the veteran seems confused, offer to explain or provide examples.
 
-## IMPORTANT: Data Collection
+## IMPORTANT: Data Collection and Progress Tracking
 When you collect information from the veteran, you MUST use the appropriate tool to save the data. After confirming information with the veteran, call the relevant save function. Always confirm before saving.
 
 Available data categories to save:
@@ -107,7 +107,19 @@ Available data categories to save:
 - Military service (branch, rank, retirement date, service number)
 - VA disability info (VA file number, rating percentage, decision date)
 - Disability claims (each individual disability with details)
-- Phase/step completion status`
+
+## CRITICAL: Progress Status Updates
+After EACH successful data save, you MUST call update_phase_status to track progress:
+
+1. After confirming eligibility (retired, VA rating, disability offset) → update_phase_status("eligibility", "completed")
+2. After saving personal_info with at least name and contact info → update_phase_status("personal_info", "completed")
+3. After saving military_service with branch and retirement type → update_phase_status("military_service", "completed")
+4. After saving va_disability_info with rating → update_phase_status("va_disability", "completed")
+5. After saving at least one disability_claim → update_phase_status("disability_claims", "in_progress")
+6. When veteran indicates they've entered all disabilities → update_phase_status("disability_claims", "completed")
+
+When starting a new section, set it to "in_progress" first. When complete, set to "completed".
+ALWAYS update phase status - this is how the progress bar updates for the user!`
 
 interface Message {
   role: 'user' | 'assistant'

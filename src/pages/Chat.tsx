@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Progress } from '@/components/ui/progress'
+import { Badge } from '@/components/ui/badge'
 import {
   Sheet,
   SheetContent,
@@ -115,7 +116,7 @@ function QuickResponses({ onSelect }: { onSelect: (response: string) => void }) 
 
 export default function Chat() {
   const navigate = useNavigate()
-  const { user } = useAuthContext()
+  const { user, isVeteranVerified } = useAuthContext()
   const {
     messages,
     isLoading,
@@ -200,6 +201,12 @@ export default function Chat() {
           </div>
 
           <div className="flex items-center gap-4">
+            {isVeteranVerified && (
+              <Badge variant="outline" className="text-green-600 border-green-600 hidden sm:flex">
+                <CheckCircle className="h-3 w-3 mr-1" />
+                Verified
+              </Badge>
+            )}
             <div className="hidden md:flex items-center gap-2">
               <span className="text-sm text-muted-foreground">Progress:</span>
               <Progress value={progress.percentage} className="w-24 h-2" />

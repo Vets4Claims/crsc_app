@@ -113,11 +113,21 @@ export default function Dashboard() {
               <Button variant="ghost" className="gap-2">
                 <User className="h-4 w-4" />
                 <span className="hidden sm:inline">{user?.email}</span>
+                {isVeteranVerified && (
+                  <CheckCircle className="h-4 w-4 text-green-600" />
+                )}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem disabled>
-                <span className="text-sm text-muted-foreground">{user?.email}</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">{user?.email}</span>
+                  {isVeteranVerified && (
+                    <Badge variant="outline" className="text-green-600 border-green-600 text-xs">
+                      Verified
+                    </Badge>
+                  )}
+                </div>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={handleSignOut}>
