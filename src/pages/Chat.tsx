@@ -113,7 +113,7 @@ function MessageBubble({ message, userId, onExtractionComplete, uploadCompleted 
       >
         {isUser ? <User className="h-4 w-4" /> : <Bot className="h-4 w-4" />}
       </div>
-      <div className="max-w-[80%] flex flex-col">
+      <div className="max-w-[80%] min-w-0 flex flex-col">
         <div
           className={`rounded-lg px-4 py-3 ${
             isUser
@@ -122,9 +122,9 @@ function MessageBubble({ message, userId, onExtractionComplete, uploadCompleted 
           }`}
         >
           {isUser ? (
-            <p className="whitespace-pre-wrap">{message.content}</p>
+            <p className="whitespace-pre-wrap break-words">{message.content}</p>
           ) : (
-            <div className="chat-prose prose prose-sm max-w-none prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5">
+            <div className="chat-prose prose prose-sm max-w-none overflow-hidden break-words prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5">
               <ReactMarkdown>{cleanContent}</ReactMarkdown>
             </div>
           )}
@@ -427,8 +427,8 @@ export default function Chat() {
       </header>
 
       {/* Chat Area */}
-      <div className="flex-1 flex flex-col container mx-auto max-w-4xl">
-        <ScrollArea className="flex-1 p-4">
+      <div className="flex-1 flex flex-col container mx-auto max-w-4xl overflow-hidden">
+        <ScrollArea className="flex-1 p-4 overflow-x-hidden">
           <div className="space-y-4 pb-4">
             {messages.map((message) => (
               <MessageBubble
