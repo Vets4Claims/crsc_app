@@ -6,7 +6,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-type DocumentType = 'va_decision_letter' | 'va_code_sheet' | 'dd214'
+type DocumentType = 'va_decision_letter' | 'va_code_sheet' | 'dd214' | 'medical_records'
 
 interface ExtractRequest {
   userId: string
@@ -81,6 +81,34 @@ Important:
 - Use null for any fields you cannot find
 - For dates, use YYYY-MM-DD format
 - Return ONLY the JSON object, no other text`,
+
+  medical_records: `You are analyzing military or VA medical records related to combat injuries and disabilities.
+
+Extract the following information and return it as a JSON object:
+
+{
+  "records": [
+    {
+      "date": "Date of the record/treatment in YYYY-MM-DD format",
+      "facility": "Name of the medical facility or hospital",
+      "provider": "Name of the treating physician/provider if shown",
+      "diagnosis": "The diagnosis or condition being treated",
+      "treatment": "Description of treatment provided",
+      "relatedToService": "Any mention of service-connection or combat-relation",
+      "bodyPart": "Body part or system affected",
+      "notes": "Any relevant notes about injuries, incidents, or combat events mentioned"
+    }
+  ],
+  "serviceConnection": "Any explicit statements about service connection",
+  "combatRelated": "Any mentions of combat, deployment, or military incidents"
+}
+
+Important:
+- Extract ALL medical encounters/records from the document
+- Look for any mentions of combat, deployment, military service, or service-connected conditions
+- Use null for any fields you cannot find
+- For dates, use YYYY-MM-DD format
+- Return ONLY the JSON object, no other text`,
 }
 
 serve(async (req: Request) => {
@@ -101,9 +129,9 @@ serve(async (req: Request) => {
     }
 
     // Validate document type
-    if (!['va_decision_letter', 'va_code_sheet', 'dd214'].includes(documentType)) {
+    if (!['va_decision_letter', 'va_code_sheet', 'dd214', 'medical_records'].includes(documentType)) {
       return new Response(
-        JSON.stringify({ error: 'Invalid document type. Must be va_decision_letter, va_code_sheet, or dd214' }),
+        JSON.stringify({ error: 'Invalid document type. Must be va_decision_letter, va_code_sheet, dd214, or medical_records' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }

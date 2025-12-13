@@ -46,7 +46,7 @@ import { APPLICATION_STEPS } from '@/lib/constants'
 import ChatDropzone, { type DocumentType, type ExtractedDocumentData } from '@/components/chat/ChatDropzone'
 
 // Regex to detect upload request markers in assistant messages
-const UPLOAD_REQUEST_REGEX = /\[UPLOAD_REQUEST:(va_decision_letter|va_code_sheet|dd214)\]/g
+const UPLOAD_REQUEST_REGEX = /\[UPLOAD_REQUEST:(va_decision_letter|va_code_sheet|dd214|medical_records)\]/g
 
 // Parse message content to extract upload requests and clean content
 function parseMessageContent(content: string): {
@@ -427,9 +427,9 @@ export default function Chat() {
       </header>
 
       {/* Chat Area */}
-      <div className="flex-1 flex flex-col container mx-auto max-w-4xl overflow-hidden">
-        <ScrollArea className="flex-1 p-4 overflow-x-hidden">
-          <div className="space-y-4 pb-4">
+      <div className="flex-1 flex flex-col w-full max-w-4xl mx-auto px-4 overflow-hidden">
+        <ScrollArea className="flex-1 py-4">
+          <div className="space-y-4 pb-4 pr-2">
             {messages.map((message) => (
               <MessageBubble
                 key={message.id}

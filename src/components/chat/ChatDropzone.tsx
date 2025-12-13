@@ -9,11 +9,12 @@ const DOCUMENT_TYPE_LABELS: Record<string, string> = {
   va_decision_letter: 'VA Decision Letter',
   va_code_sheet: 'VA Code Sheet',
   dd214: 'DD214',
+  medical_records: 'Medical Records',
 }
 
 const MAX_FILES = 10
 
-export type DocumentType = 'va_decision_letter' | 'va_code_sheet' | 'dd214'
+export type DocumentType = 'va_decision_letter' | 'va_code_sheet' | 'dd214' | 'medical_records'
 
 // Re-export for convenience
 export type { ExtractedDocumentData } from '@/lib/api'
