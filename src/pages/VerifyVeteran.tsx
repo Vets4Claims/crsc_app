@@ -31,16 +31,22 @@ export default function VerifyVeteran() {
   useEffect(() => {
     // Check current verification status
     const checkStatus = async () => {
-      if (!user?.id) return
-
-      setIsCheckingStatus(true)
-      const result = await getVerificationStatus(user.id)
-
-      if (result.data?.veteran_verified) {
-        setIsVerified(true)
+      if (!user?.id) {
+        setIsCheckingStatus(false)
+        return
       }
 
-      setIsCheckingStatus(false)
+      try {
+        const result = await getVerificationStatus(user.id)
+
+        if (result.data?.veteran_verified) {
+          setIsVerified(true)
+        }
+      } catch (err) {
+        console.error('Error checking verification status:', err)
+      } finally {
+        setIsCheckingStatus(false)
+      }
     }
 
     checkStatus()
@@ -50,8 +56,10 @@ export default function VerifyVeteran() {
     // Handle callback from ID.me
     if (success === 'true') {
       setIsVerified(true)
+      setIsCheckingStatus(false)
     } else if (callbackError) {
-      setError(callbackError)
+      setError(decodeURIComponent(callbackError))
+      setIsCheckingStatus(false)
     }
   }, [success, callbackError])
 
