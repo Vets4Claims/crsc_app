@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import ReactMarkdown from 'react-markdown'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuthContext } from '@/contexts/AuthContext'
@@ -43,10 +43,51 @@ import {
   AlertTriangle,
 } from 'lucide-react'
 import { APPLICATION_STEPS } from '@/lib/constants'
+import ChatDropzone, { type DocumentType, type ExtractedDocumentData } from '@/components/chat/ChatDropzone'
 
-function MessageBubble({ message }: { message: Message }) {
+// Regex to detect upload request markers in assistant messages
+const UPLOAD_REQUEST_REGEX = /\[UPLOAD_REQUEST:(va_decision_letter|va_code_sheet|dd214)\]/g
+
+// Parse message content to extract upload requests and clean content
+function parseMessageContent(content: string): {
+  cleanContent: string
+  uploadRequests: DocumentType[]
+} {
+  const uploadRequests: DocumentType[] = []
+  let match
+
+  // Find all upload request markers
+  while ((match = UPLOAD_REQUEST_REGEX.exec(content)) !== null) {
+    uploadRequests.push(match[1] as DocumentType)
+  }
+
+  // Reset regex lastIndex for next use
+  UPLOAD_REQUEST_REGEX.lastIndex = 0
+
+  // Remove markers from content
+  const cleanContent = content.replace(UPLOAD_REQUEST_REGEX, '').trim()
+
+  return { cleanContent, uploadRequests }
+}
+
+interface MessageBubbleProps {
+  message: Message
+  userId?: string
+  onExtractionComplete?: (data: ExtractedDocumentData, documentType: DocumentType) => void
+  uploadCompleted?: Set<string>
+}
+
+function MessageBubble({ message, userId, onExtractionComplete, uploadCompleted }: MessageBubbleProps) {
   const isUser = message.role === 'user'
   const isSystem = message.role === 'system'
+
+  // Parse message for upload requests if it's an assistant message
+  const { cleanContent, uploadRequests } = useMemo(() => {
+    if (isUser || isSystem) {
+      return { cleanContent: message.content, uploadRequests: [] }
+    }
+    return parseMessageContent(message.content)
+  }, [message.content, isUser, isSystem])
 
   if (isSystem) {
     return (
@@ -58,6 +99,11 @@ function MessageBubble({ message }: { message: Message }) {
     )
   }
 
+  // Check if uploads for this message have been completed
+  const hasCompletedUploads = uploadRequests.length > 0 && uploadRequests.every(
+    (type) => uploadCompleted?.has(`${message.id}-${type}`)
+  )
+
   return (
     <div className={`flex gap-3 ${isUser ? 'flex-row-reverse' : ''}`}>
       <div
@@ -67,23 +113,45 @@ function MessageBubble({ message }: { message: Message }) {
       >
         {isUser ? <User className="h-4 w-4" /> : <Bot className="h-4 w-4" />}
       </div>
-      <div
-        className={`max-w-[80%] rounded-lg px-4 py-3 ${
-          isUser
-            ? 'bg-primary text-primary-foreground'
-            : 'bg-muted'
-        }`}
-      >
-        {isUser ? (
-          <p className="whitespace-pre-wrap">{message.content}</p>
-        ) : (
-          <div className="chat-prose prose prose-sm max-w-none prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5">
-            <ReactMarkdown>{message.content}</ReactMarkdown>
+      <div className="max-w-[80%] flex flex-col">
+        <div
+          className={`rounded-lg px-4 py-3 ${
+            isUser
+              ? 'bg-primary text-primary-foreground'
+              : 'bg-muted'
+          }`}
+        >
+          {isUser ? (
+            <p className="whitespace-pre-wrap">{message.content}</p>
+          ) : (
+            <div className="chat-prose prose prose-sm max-w-none prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5">
+              <ReactMarkdown>{cleanContent}</ReactMarkdown>
+            </div>
+          )}
+          <p className={`text-xs mt-1 ${isUser ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
+            {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          </p>
+        </div>
+
+        {/* Render dropzones for upload requests (only for assistant messages that haven't been completed) */}
+        {!isUser && uploadRequests.length > 0 && !hasCompletedUploads && userId && onExtractionComplete && (
+          <div className="mt-2">
+            {uploadRequests.map((docType) => (
+              <ChatDropzone
+                key={`${message.id}-${docType}`}
+                documentType={docType}
+                userId={userId}
+                onExtractionComplete={(data, type) => {
+                  onExtractionComplete(data, type)
+                }}
+                onError={(error) => {
+                  console.error('Extraction error:', error)
+                }}
+                disabled={uploadCompleted?.has(`${message.id}-${docType}`)}
+              />
+            ))}
           </div>
         )}
-        <p className={`text-xs mt-1 ${isUser ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
-          {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-        </p>
       </div>
     </div>
   )
@@ -133,7 +201,30 @@ export default function Chat() {
   const inputRef = useRef<HTMLInputElement>(null)
   const initialMessageSent = useRef(false)
 
+  // Track which uploads have been completed to hide the dropzone
+  const [completedUploads, setCompletedUploads] = useState<Set<string>>(new Set())
+
   const progress = calculateProgress()
+
+  // Handle extraction completion - send extracted data to chat
+  const handleExtractionComplete = useCallback(
+    async (data: ExtractedDocumentData, documentType: DocumentType) => {
+      // Find the message that requested this upload and mark it as completed
+      const lastAssistantMessage = [...messages].reverse().find(
+        (m) => m.role === 'assistant' && m.content.includes(`[UPLOAD_REQUEST:${documentType}]`)
+      )
+
+      if (lastAssistantMessage) {
+        setCompletedUploads((prev) => new Set(prev).add(`${lastAssistantMessage.id}-${documentType}`))
+      }
+
+      // Send the extracted data to the chat handler as a special message
+      // The chat handler will recognize this format and present it conversationally
+      const extractedDataMessage = `[EXTRACTED_DATA:${documentType}]${JSON.stringify(data)}`
+      await sendMessage(extractedDataMessage)
+    },
+    [messages, sendMessage]
+  )
 
   useEffect(() => {
     // Focus input on mount
@@ -340,7 +431,13 @@ export default function Chat() {
         <ScrollArea className="flex-1 p-4">
           <div className="space-y-4 pb-4">
             {messages.map((message) => (
-              <MessageBubble key={message.id} message={message} />
+              <MessageBubble
+                key={message.id}
+                message={message}
+                userId={user?.id}
+                onExtractionComplete={handleExtractionComplete}
+                uploadCompleted={completedUploads}
+              />
             ))}
 
             {isLoading && (

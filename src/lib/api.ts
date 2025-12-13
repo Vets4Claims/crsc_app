@@ -384,3 +384,85 @@ export async function createPaymentIntent(
     amount,
   })
 }
+
+// Document Extraction Types
+export interface ExtractedDisability {
+  title: string
+  diagnosticCode?: string
+  percentage: number
+  effectiveDate?: string
+  bodyPart?: string
+}
+
+export interface ExtractedVADecisionLetter {
+  disabilities: ExtractedDisability[]
+  combinedRating?: number
+  decisionDate?: string
+  vaFileNumber?: string
+}
+
+export interface ExtractedCodeSheet {
+  disabilities: Array<{
+    diagnosticCode: string
+    description: string
+    percentage: number
+  }>
+  combinedRating?: number
+}
+
+export interface ExtractedDD214 {
+  branch?: string
+  entryDate?: string
+  separationDate?: string
+  rank?: string
+  yearsOfService?: number
+  characterOfService?: string
+}
+
+export type ExtractedDocumentData = ExtractedVADecisionLetter | ExtractedCodeSheet | ExtractedDD214
+
+// Extract Document Data using Claude Vision
+export async function extractDocumentData(
+  userId: string,
+  documentType: string,
+  file: File
+): Promise<{ success: boolean; data?: ExtractedDocumentData; error?: string }> {
+  try {
+    // Convert file to base64
+    const arrayBuffer = await file.arrayBuffer()
+    const uint8Array = new Uint8Array(arrayBuffer)
+    let binary = ''
+    for (let i = 0; i < uint8Array.length; i++) {
+      binary += String.fromCharCode(uint8Array[i])
+    }
+    const fileBase64 = btoa(binary)
+
+    // Call the extraction edge function
+    const result = await callEdgeFunction<{
+      success: boolean
+      documentType: string
+      data: ExtractedDocumentData
+      error?: string
+    }>('extract-document', {
+      userId,
+      documentType,
+      fileBase64,
+      mimeType: file.type,
+    })
+
+    if (result.error) {
+      return { success: false, error: result.error }
+    }
+
+    if (!result.data?.success) {
+      return { success: false, error: result.data?.error || 'Extraction failed' }
+    }
+
+    return { success: true, data: result.data.data }
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to extract document data',
+    }
+  }
+}
