@@ -136,12 +136,13 @@ export default function Dashboard() {
               <DropdownMenuSeparator />
               {isAdmin && (
                 <>
-                  <DropdownMenuItem
-                    onSelect={(e) => {
+                  <div
+                    className="flex items-center justify-between px-2 py-1.5 text-sm cursor-pointer hover:bg-accent rounded-sm"
+                    onClick={(e) => {
                       e.preventDefault()
+                      e.stopPropagation()
                       toggleDevMode()
                     }}
-                    className="flex items-center justify-between"
                   >
                     <div className="flex items-center">
                       <Code className="mr-2 h-4 w-4" />
@@ -149,10 +150,11 @@ export default function Dashboard() {
                     </div>
                     <Switch
                       checked={devMode}
-                      onCheckedChange={toggleDevMode}
+                      onCheckedChange={() => toggleDevMode()}
+                      onClick={(e) => e.stopPropagation()}
                       className="ml-2"
                     />
-                  </DropdownMenuItem>
+                  </div>
                   <DropdownMenuSeparator />
                 </>
               )}
