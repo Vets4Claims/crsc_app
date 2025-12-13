@@ -143,7 +143,7 @@ export function maskSSN(ssn: string): string {
 
 // Helper function to validate file upload
 export function validateFileUpload(file: File): { valid: boolean; error?: string } {
-  const maxSize = 10 * 1024 * 1024 // 10MB
+  const maxSize = 50 * 1024 * 1024 // 50MB
   const allowedTypes = [
     'application/pdf',
     'image/jpeg',
@@ -153,7 +153,7 @@ export function validateFileUpload(file: File): { valid: boolean; error?: string
   ]
 
   if (file.size > maxSize) {
-    return { valid: false, error: 'File size must be less than 10MB' }
+    return { valid: false, error: 'File size must be less than 50MB' }
   }
 
   if (!allowedTypes.includes(file.type)) {

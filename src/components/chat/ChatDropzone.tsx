@@ -247,7 +247,7 @@ export default function ChatDropzone({
                   Drop files here or click to browse
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  PDF or images (max 10MB each, up to {MAX_FILES} files)
+                  PDF or images (max 50MB each, up to {MAX_FILES} files)
                 </p>
               </div>
             </>
