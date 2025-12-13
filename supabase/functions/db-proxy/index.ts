@@ -135,6 +135,26 @@ serve(async (req: Request) => {
         break
       }
 
+      case 'get_verification_status': {
+        const res = await db.queryObject`
+          SELECT veteran_verified, veteran_verified_at, military_status
+          FROM users WHERE id = ${userId}
+        `
+        result = res.rows[0] || null
+        break
+      }
+
+      case 'get_verification_log': {
+        const res = await db.queryObject`
+          SELECT * FROM verification_log
+          WHERE user_id = ${userId}
+          ORDER BY created_at DESC
+          LIMIT 10
+        `
+        result = res.rows
+        break
+      }
+
       // ==================== UPSERT Operations ====================
       case 'upsert_personal_info': {
         const d = data!

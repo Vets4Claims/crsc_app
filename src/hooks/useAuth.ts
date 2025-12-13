@@ -1,13 +1,15 @@
 import { useState, useEffect, useCallback } from 'react'
 import type { User, Session } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
-import { createUserProfile, createAuditLog } from '@/lib/api'
+import { createUserProfile, createAuditLog, getVerificationStatus } from '@/lib/api'
 
 interface AuthState {
   user: User | null
   session: Session | null
   loading: boolean
   error: string | null
+  veteranVerified: boolean
+  veteranVerifiedAt: string | null
 }
 
 export function useAuth() {
@@ -16,11 +18,25 @@ export function useAuth() {
     session: null,
     loading: true,
     error: null,
+    veteranVerified: false,
+    veteranVerifiedAt: null,
   })
+
+  // Function to check verification status
+  const checkVerificationStatus = useCallback(async (userId: string) => {
+    const result = await getVerificationStatus(userId)
+    if (result.data) {
+      setState((prev) => ({
+        ...prev,
+        veteranVerified: result.data?.veteran_verified ?? false,
+        veteranVerifiedAt: result.data?.veteran_verified_at ?? null,
+      }))
+    }
+  }, [])
 
   useEffect(() => {
     // Get initial session
-    supabase.auth.getSession().then(({ data: { session }, error }) => {
+    supabase.auth.getSession().then(async ({ data: { session }, error }) => {
       setState((prev) => ({
         ...prev,
         session,
@@ -28,6 +44,11 @@ export function useAuth() {
         loading: false,
         error: error?.message ?? null,
       }))
+
+      // Check verification status if user is logged in
+      if (session?.user) {
+        await checkVerificationStatus(session.user.id)
+      }
     })
 
     // Listen for auth changes
@@ -44,10 +65,18 @@ export function useAuth() {
         if (event === 'SIGNED_IN' && session?.user) {
           await createUserProfile(session.user.id, session.user.email!)
           await createAuditLog(session.user.id, 'sign_in', 'auth')
+          // Check verification status
+          await checkVerificationStatus(session.user.id)
         }
 
         if (event === 'SIGNED_OUT') {
           await createAuditLog(null, 'sign_out', 'auth')
+          // Reset verification state
+          setState((prev) => ({
+            ...prev,
+            veteranVerified: false,
+            veteranVerifiedAt: null,
+          }))
         }
       }
     )
@@ -55,7 +84,7 @@ export function useAuth() {
     return () => {
       subscription.unsubscribe()
     }
-  }, [])
+  }, [checkVerificationStatus])
 
   const signUp = useCallback(async (email: string, password: string) => {
     setState((prev) => ({ ...prev, loading: true, error: null }))
@@ -144,6 +173,13 @@ export function useAuth() {
     setState((prev) => ({ ...prev, error: null }))
   }, [])
 
+  // Allow manual refresh of verification status
+  const refreshVerificationStatus = useCallback(async () => {
+    if (state.user?.id) {
+      await checkVerificationStatus(state.user.id)
+    }
+  }, [state.user?.id, checkVerificationStatus])
+
   return {
     ...state,
     signUp,
@@ -152,6 +188,8 @@ export function useAuth() {
     resetPassword,
     updatePassword,
     clearError,
+    refreshVerificationStatus,
     isAuthenticated: !!state.user,
+    isVeteranVerified: state.veteranVerified,
   }
 }

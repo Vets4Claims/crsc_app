@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { Badge } from '@/components/ui/badge'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -28,6 +29,7 @@ import {
   Download,
   AlertCircle,
   Loader2,
+  AlertTriangle,
 } from 'lucide-react'
 
 const stepIcons: Record<string, typeof CheckCircle> = {
@@ -44,7 +46,7 @@ const stepIcons: Record<string, typeof CheckCircle> = {
 
 export default function Dashboard() {
   const navigate = useNavigate()
-  const { user, signOut } = useAuthContext()
+  const { user, signOut, isVeteranVerified } = useAuthContext()
   const { packetStatus, loading, calculateProgress } = useFormData(user?.id)
 
   const progress = calculateProgress()
@@ -128,6 +130,29 @@ export default function Dashboard() {
       </header>
 
       <main className="container mx-auto px-4 py-8">
+        {/* Veteran Verification Banner */}
+        {!isVeteranVerified && (
+          <Alert className="mb-6 border-amber-200 bg-amber-50">
+            <AlertTriangle className="h-4 w-4 text-amber-600" />
+            <AlertTitle className="text-amber-800">Verify Your Veteran Status</AlertTitle>
+            <AlertDescription className="text-amber-700">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mt-2">
+                <span>
+                  Verify your veteran status with ID.me to generate your CRSC filing packet.
+                  You can still fill out your application, but verification is required before payment and download.
+                </span>
+                <Button
+                  size="sm"
+                  className="bg-amber-600 hover:bg-amber-700 whitespace-nowrap"
+                  onClick={() => navigate('/verify-veteran')}
+                >
+                  Verify Now
+                </Button>
+              </div>
+            </AlertDescription>
+          </Alert>
+        )}
+
         {/* Welcome Card */}
         <Card className="mb-8">
           <CardHeader>

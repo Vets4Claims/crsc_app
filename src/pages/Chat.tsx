@@ -126,7 +126,7 @@ export default function Chat() {
     messagesEndRef,
     historyLoaded,
   } = useChat(user?.id)
-  const { calculateProgress, packetStatus, resetProgress } = useFormData(user?.id)
+  const { calculateProgress, packetStatus, resetProgress, loadAllData } = useFormData(user?.id)
 
   const [inputValue, setInputValue] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
@@ -147,6 +147,21 @@ export default function Chat() {
       sendMessage('Hello, I need help filing for CRSC benefits.')
     }
   }, [historyLoaded, user?.id, messages.length, sendMessage])
+
+  // Refresh form data (and progress) when a new assistant message is received
+  // This ensures the progress bar updates after the AI saves data via tool calls
+  const lastMessageCount = useRef(messages.length)
+  useEffect(() => {
+    // Only refresh if messages increased (new message added) and last message is from assistant
+    if (messages.length > lastMessageCount.current) {
+      const lastMessage = messages[messages.length - 1]
+      if (lastMessage?.role === 'assistant') {
+        // Refresh data to get updated packet status
+        loadAllData()
+      }
+    }
+    lastMessageCount.current = messages.length
+  }, [messages.length, messages, loadAllData])
 
   const handleSend = async () => {
     if (!inputValue.trim() || isLoading) return

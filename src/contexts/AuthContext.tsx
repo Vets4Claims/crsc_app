@@ -8,12 +8,16 @@ interface AuthContextValue {
   loading: boolean
   error: string | null
   isAuthenticated: boolean
+  isVeteranVerified: boolean
+  veteranVerified: boolean
+  veteranVerifiedAt: string | null
   signUp: (email: string, password: string) => Promise<{ success: boolean; error?: string; user?: User | null }>
   signIn: (email: string, password: string) => Promise<{ success: boolean; error?: string; user?: User | null }>
   signOut: () => Promise<{ success: boolean; error?: string }>
   resetPassword: (email: string) => Promise<{ success: boolean; error?: string }>
   updatePassword: (newPassword: string) => Promise<{ success: boolean; error?: string }>
   clearError: () => void
+  refreshVerificationStatus: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)

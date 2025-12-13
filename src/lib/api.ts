@@ -211,6 +211,21 @@ export async function resetPacketStatus(userId: string): Promise<ApiResponse<nul
   return { data: null, error: null }
 }
 
+// Veteran Verification API
+export interface VerificationStatus {
+  veteran_verified: boolean
+  veteran_verified_at: string | null
+  military_status: string | null
+}
+
+export async function getVerificationStatus(userId: string): Promise<ApiResponse<VerificationStatus>> {
+  return callDbProxy<VerificationStatus>('get_verification_status', userId)
+}
+
+export async function initiateIdmeVerification(userId: string): Promise<ApiResponse<{ authorizationUrl: string }>> {
+  return callEdgeFunction<{ authorizationUrl: string }>('idme-auth', { userId })
+}
+
 // Payments API - handled by edge function
 export async function getPayments(userId: string): Promise<ApiResponse<Tables['payments']['Row'][]>> {
   const { data, error } = await supabase
