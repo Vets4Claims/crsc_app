@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { loadStripe } from '@stripe/stripe-js'
 import {
@@ -8,6 +8,7 @@ import {
   useElements,
 } from '@stripe/react-stripe-js'
 import { useAuthContext } from '@/contexts/AuthContext'
+import { useDevMode } from '@/contexts/DevModeContext'
 import { usePayment } from '@/hooks/usePayment'
 import { useFormData } from '@/hooks/useFormData'
 import { PAYMENT_AMOUNT, MILITARY_BRANCHES, BRANCH_MAILING_ADDRESSES } from '@/lib/constants'
@@ -27,6 +28,7 @@ import {
   FileText,
   Mail,
   Package,
+  Code,
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -108,6 +110,7 @@ function CheckoutForm({ onSuccess }: { onSuccess: () => void }) {
 export default function Payment() {
   const navigate = useNavigate()
   const { user } = useAuthContext()
+  const { devMode } = useDevMode()
   const {
     clientSecret,
     loading: paymentLoading,
@@ -119,6 +122,8 @@ export default function Payment() {
   )
 
   const [paymentSuccess, setPaymentSuccess] = useState(false)
+  const [showPaymentForm, setShowPaymentForm] = useState(false)
+  const [isProcessingMock, setIsProcessingMock] = useState(false)
 
   const isReadyForPayment =
     isSectionComplete('personal_info') &&
@@ -127,11 +132,21 @@ export default function Payment() {
     isSectionComplete('disability_claims') &&
     isSectionComplete('documents')
 
-  useEffect(() => {
-    if (isReadyForPayment && user?.id) {
-      initializePayment()
+  const handleConfirmPayment = async () => {
+    if (devMode) {
+      // Mock payment in dev mode
+      setIsProcessingMock(true)
+      await new Promise(resolve => setTimeout(resolve, 1500)) // Simulate processing
+      setIsProcessingMock(false)
+      handlePaymentSuccess()
+    } else {
+      // Real payment - initialize Stripe
+      setShowPaymentForm(true)
+      if (!clientSecret) {
+        initializePayment()
+      }
     }
-  }, [isReadyForPayment, user?.id, initializePayment])
+  }
 
   const handlePaymentSuccess = () => {
     setPaymentSuccess(true)
@@ -358,37 +373,86 @@ export default function Payment() {
                   Payment Details
                 </CardTitle>
                 <CardDescription>
-                  Enter your card information to complete your purchase
+                  {devMode
+                    ? 'Dev mode enabled - payment will be simulated'
+                    : 'Enter your card information to complete your purchase'
+                  }
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                {paymentError && (
+                {devMode && (
+                  <Alert className="mb-4 border-amber-200 bg-amber-50">
+                    <Code className="h-4 w-4 text-amber-600" />
+                    <AlertTitle className="text-amber-800">Developer Mode</AlertTitle>
+                    <AlertDescription className="text-amber-700">
+                      Payment will be simulated. No actual charge will be made.
+                    </AlertDescription>
+                  </Alert>
+                )}
+
+                {paymentError && !devMode && (
                   <Alert variant="destructive" className="mb-4">
                     <AlertCircle className="h-4 w-4" />
                     <AlertDescription>{paymentError}</AlertDescription>
                   </Alert>
                 )}
 
-                {clientSecret ? (
-                  <Elements
-                    stripe={stripePromise}
-                    options={{
-                      clientSecret,
-                      appearance: {
-                        theme: 'stripe',
-                        variables: {
-                          colorPrimary: '#003f87',
-                        },
-                      },
-                    }}
-                  >
-                    <CheckoutForm onSuccess={handlePaymentSuccess} />
-                  </Elements>
-                ) : (
-                  <div className="flex items-center justify-center py-8">
-                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                    <span className="ml-2">Initializing payment...</span>
+                {!showPaymentForm ? (
+                  <div className="space-y-4">
+                    <div className="bg-muted/50 p-4 rounded-lg text-center">
+                      <p className="text-lg font-semibold mb-2">Total: ${PAYMENT_AMOUNT.toFixed(2)}</p>
+                      <p className="text-sm text-muted-foreground">
+                        Click below to {devMode ? 'simulate payment' : 'proceed to payment'}
+                      </p>
+                    </div>
+                    <Button
+                      className="w-full"
+                      size="lg"
+                      onClick={handleConfirmPayment}
+                      disabled={isProcessingMock}
+                    >
+                      {isProcessingMock ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Processing Mock Payment...
+                        </>
+                      ) : devMode ? (
+                        <>
+                          <Code className="mr-2 h-4 w-4" />
+                          Confirm Mock Payment
+                        </>
+                      ) : (
+                        <>
+                          <CreditCard className="mr-2 h-4 w-4" />
+                          Proceed to Payment
+                        </>
+                      )}
+                    </Button>
                   </div>
+                ) : (
+                  <>
+                    {clientSecret ? (
+                      <Elements
+                        stripe={stripePromise}
+                        options={{
+                          clientSecret,
+                          appearance: {
+                            theme: 'stripe',
+                            variables: {
+                              colorPrimary: '#003f87',
+                            },
+                          },
+                        }}
+                      >
+                        <CheckoutForm onSuccess={handlePaymentSuccess} />
+                      </Elements>
+                    ) : paymentLoading ? (
+                      <div className="flex items-center justify-center py-8">
+                        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                        <span className="ml-2">Initializing payment...</span>
+                      </div>
+                    ) : null}
+                  </>
                 )}
               </CardContent>
             </Card>
@@ -398,8 +462,10 @@ export default function Payment() {
               <Lock className="h-4 w-4" />
               <AlertTitle>Secure Payment</AlertTitle>
               <AlertDescription>
-                Your payment information is encrypted and securely processed by Stripe.
-                We never store your full card details.
+                {devMode
+                  ? 'Dev mode is enabled. No real payment will be processed.'
+                  : 'Your payment information is encrypted and securely processed by Stripe. We never store your full card details.'
+                }
               </AlertDescription>
             </Alert>
           </div>
