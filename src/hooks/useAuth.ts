@@ -22,38 +22,62 @@ export function useAuth() {
     veteranVerifiedAt: null,
   })
 
-  // Function to check verification status
+  // Function to check verification status (non-blocking)
   const checkVerificationStatus = useCallback(async (userId: string) => {
-    const result = await getVerificationStatus(userId)
-    if (result.data) {
-      setState((prev) => ({
-        ...prev,
-        veteranVerified: result.data?.veteran_verified ?? false,
-        veteranVerifiedAt: result.data?.veteran_verified_at ?? null,
-      }))
+    try {
+      const result = await getVerificationStatus(userId)
+      if (result.data) {
+        setState((prev) => ({
+          ...prev,
+          veteranVerified: result.data?.veteran_verified ?? false,
+          veteranVerifiedAt: result.data?.veteran_verified_at ?? null,
+        }))
+      }
+    } catch (err) {
+      console.error('Failed to check verification status:', err)
     }
   }, [])
 
   useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(async ({ data: { session }, error }) => {
-      setState((prev) => ({
-        ...prev,
-        session,
-        user: session?.user ?? null,
-        loading: false,
-        error: error?.message ?? null,
-      }))
+    let isMounted = true
 
-      // Check verification status if user is logged in
-      if (session?.user) {
-        await checkVerificationStatus(session.user.id)
+    // Get initial session
+    const initializeAuth = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession()
+
+        if (!isMounted) return
+
+        setState((prev) => ({
+          ...prev,
+          session,
+          user: session?.user ?? null,
+          loading: false,
+          error: error?.message ?? null,
+        }))
+
+        // Check verification status in background (non-blocking)
+        if (session?.user) {
+          checkVerificationStatus(session.user.id)
+        }
+      } catch (err) {
+        if (!isMounted) return
+        console.error('Failed to get session:', err)
+        setState((prev) => ({
+          ...prev,
+          loading: false,
+          error: 'Failed to initialize authentication',
+        }))
       }
-    })
+    }
+
+    initializeAuth()
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      (event, session) => {
+        if (!isMounted) return
+
         setState((prev) => ({
           ...prev,
           session,
@@ -61,17 +85,16 @@ export function useAuth() {
           loading: false,
         }))
 
-        // Create user profile on sign up
+        // Handle events in background (non-blocking)
         if (event === 'SIGNED_IN' && session?.user) {
-          await createUserProfile(session.user.id, session.user.email!)
-          await createAuditLog(session.user.id, 'sign_in', 'auth')
-          // Check verification status
-          await checkVerificationStatus(session.user.id)
+          // Fire and forget - don't block UI
+          createUserProfile(session.user.id, session.user.email!).catch(console.error)
+          createAuditLog(session.user.id, 'sign_in', 'auth').catch(console.error)
+          checkVerificationStatus(session.user.id)
         }
 
         if (event === 'SIGNED_OUT') {
-          await createAuditLog(null, 'sign_out', 'auth')
-          // Reset verification state
+          createAuditLog(null, 'sign_out', 'auth').catch(console.error)
           setState((prev) => ({
             ...prev,
             veteranVerified: false,
@@ -82,6 +105,7 @@ export function useAuth() {
     )
 
     return () => {
+      isMounted = false
       subscription.unsubscribe()
     }
   }, [checkVerificationStatus])
