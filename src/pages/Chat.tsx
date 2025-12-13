@@ -6,7 +6,6 @@ import { useChat, type Message } from '@/hooks/useChat'
 import { useFormData } from '@/hooks/useFormData'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import { Progress } from '@/components/ui/progress'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -277,10 +276,10 @@ export default function Chat() {
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="h-screen bg-background flex flex-col overflow-hidden">
       {/* Header */}
-      <header className="border-b bg-white sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-3 flex items-center justify-between">
+      <header className="border-b bg-white flex-shrink-0 z-50">
+        <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Button variant="ghost" size="icon" onClick={() => navigate('/dashboard')}>
               <ArrowLeft className="h-5 w-5" />
@@ -427,9 +426,10 @@ export default function Chat() {
       </header>
 
       {/* Chat Area */}
-      <div className="flex-1 flex flex-col w-full max-w-4xl mx-auto px-4 overflow-hidden">
-        <ScrollArea className="flex-1 py-4">
-          <div className="space-y-4 pb-4 pr-2">
+      <main className="flex-1 flex flex-col min-h-0 max-w-4xl w-full mx-auto">
+        {/* Messages */}
+        <div className="flex-1 overflow-y-auto px-4 py-4">
+          <div className="space-y-4">
             {messages.map((message) => (
               <MessageBubble
                 key={message.id}
@@ -442,7 +442,7 @@ export default function Chat() {
 
             {isLoading && (
               <div className="flex gap-3">
-                <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
+                <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
                   <Bot className="h-4 w-4" />
                 </div>
                 <div className="bg-muted rounded-lg px-4 py-3">
@@ -467,17 +467,17 @@ export default function Chat() {
 
             <div ref={messagesEndRef} />
           </div>
-        </ScrollArea>
+        </div>
 
         {/* Quick Responses */}
         {!isLoading && messages.length > 0 && (
-          <div className="px-4 pb-2">
+          <div className="flex-shrink-0 px-4 pb-2">
             <QuickResponses onSelect={sendMessage} />
           </div>
         )}
 
         {/* Input Area */}
-        <div className="border-t bg-white p-4">
+        <div className="flex-shrink-0 border-t bg-white p-4">
           <div className="flex gap-2">
             <Button variant="outline" size="icon" asChild>
               <Link to="/review">
@@ -508,7 +508,7 @@ export default function Chat() {
             Your conversation is encrypted and secure. Never share sensitive information like full SSN in chat.
           </p>
         </div>
-      </div>
+      </main>
     </div>
   )
 }
