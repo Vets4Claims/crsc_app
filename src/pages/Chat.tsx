@@ -17,6 +17,17 @@ import {
   SheetTrigger,
 } from '@/components/ui/sheet'
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog'
+import {
   Shield,
   Send,
   Loader2,
@@ -28,6 +39,7 @@ import {
   ArrowLeft,
   RefreshCw,
   CheckCircle,
+  AlertTriangle,
 } from 'lucide-react'
 import { APPLICATION_STEPS } from '@/lib/constants'
 
@@ -250,17 +262,47 @@ export default function Chat() {
                       <FileText className="mr-2 h-4 w-4" />
                       Review Application
                     </Button>
-                    <Button
-                      variant="outline"
-                      className="w-full"
-                      onClick={() => {
-                        initialMessageSent.current = false
-                        clearMessages()
-                      }}
-                    >
-                      <RefreshCw className="mr-2 h-4 w-4" />
-                      Restart Conversation
-                    </Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="outline" className="w-full">
+                          <RefreshCw className="mr-2 h-4 w-4" />
+                          Restart Conversation
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle className="flex items-center gap-2">
+                            <AlertTriangle className="h-5 w-5 text-amber-500" />
+                            Restart Conversation?
+                          </AlertDialogTitle>
+                          <AlertDialogDescription className="text-left space-y-2">
+                            <p>
+                              Are you sure you want to restart the conversation? This will:
+                            </p>
+                            <ul className="list-disc list-inside space-y-1 text-sm">
+                              <li>Delete your entire chat history with the AI assistant</li>
+                              <li>Start a new conversation from the beginning</li>
+                              <li>Require you to re-answer eligibility questions</li>
+                            </ul>
+                            <p className="font-medium text-foreground pt-2">
+                              Note: Your saved application data (personal info, military service, etc.) will NOT be deleted.
+                            </p>
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => {
+                              initialMessageSent.current = false
+                              clearMessages()
+                            }}
+                            className="bg-amber-600 hover:bg-amber-700"
+                          >
+                            Yes, Restart
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   </div>
                 </div>
               </SheetContent>
