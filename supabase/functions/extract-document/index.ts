@@ -6,7 +6,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-type DocumentType = 'va_decision_letter' | 'va_code_sheet' | 'dd214' | 'medical_records'
+type DocumentType = 'va_decision_letter' | 'dd214' | 'medical_records'
 
 interface ExtractRequest {
   userId: string
@@ -17,7 +17,7 @@ interface ExtractRequest {
 
 // Extraction prompts for each document type
 const EXTRACTION_PROMPTS: Record<DocumentType, string> = {
-  va_decision_letter: `You are analyzing a VA (Department of Veterans Affairs) disability rating decision letter.
+  va_decision_letter: `You are analyzing a VA (Department of Veterans Affairs) disability rating decision letter or code sheet.
 
 Extract the following information and return it as a JSON object:
 
@@ -41,27 +41,6 @@ Important:
 - Use null for any fields you cannot find
 - For percentages, use numbers not strings (70 not "70%")
 - For dates, use YYYY-MM-DD format
-- Return ONLY the JSON object, no other text`,
-
-  va_code_sheet: `You are analyzing a VA Code Sheet (Rating Code Sheet).
-
-Extract the following information and return it as a JSON object:
-
-{
-  "disabilities": [
-    {
-      "diagnosticCode": "The diagnostic code (e.g., 9411)",
-      "description": "The description of the condition",
-      "percentage": The rating percentage as a number
-    }
-  ],
-  "combinedRating": The combined rating percentage as a number
-}
-
-Important:
-- Extract ALL conditions listed
-- Use null for any fields you cannot find
-- For percentages, use numbers not strings
 - Return ONLY the JSON object, no other text`,
 
   dd214: `You are analyzing a DD214 (Certificate of Release or Discharge from Active Duty).
@@ -129,9 +108,9 @@ serve(async (req: Request) => {
     }
 
     // Validate document type
-    if (!['va_decision_letter', 'va_code_sheet', 'dd214', 'medical_records'].includes(documentType)) {
+    if (!['va_decision_letter', 'dd214', 'medical_records'].includes(documentType)) {
       return new Response(
-        JSON.stringify({ error: 'Invalid document type. Must be va_decision_letter, va_code_sheet, dd214, or medical_records' }),
+        JSON.stringify({ error: 'Invalid document type. Must be va_decision_letter, dd214, or medical_records' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }

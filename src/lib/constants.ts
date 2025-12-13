@@ -202,8 +202,7 @@ export const BRANCH_MAILING_ADDRESSES = {
 export const DOCUMENT_TYPES = [
   { value: 'dd214', label: 'DD214/DD215', required: true },
   { value: 'retirement_orders', label: 'Retirement Orders', required: true },
-  { value: 'va_decision', label: 'VA Rating Decision Letter', required: true },
-  { value: 'va_code_sheet', label: 'VA Code Sheet', required: true },
+  { value: 'va_decision_letter', label: 'VA Rating Decision Letter / Code Sheet', required: true },
   { value: 'medical_records', label: 'Medical Records', required: false },
   { value: 'purple_heart', label: 'Purple Heart Documentation', required: false },
   { value: 'awards_citations', label: 'Awards/Citations', required: false },

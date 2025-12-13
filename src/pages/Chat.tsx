@@ -45,7 +45,7 @@ import { APPLICATION_STEPS } from '@/lib/constants'
 import ChatDropzone, { type DocumentType, type ExtractedDocumentData } from '@/components/chat/ChatDropzone'
 
 // Regex to detect upload request markers in assistant messages
-const UPLOAD_REQUEST_REGEX = /\[UPLOAD_REQUEST:(va_decision_letter|va_code_sheet|dd214|medical_records)\]/g
+const UPLOAD_REQUEST_REGEX = /\[UPLOAD_REQUEST:(va_decision_letter|dd214|medical_records)\]/g
 
 // Parse message content to extract upload requests and clean content
 function parseMessageContent(content: string): {

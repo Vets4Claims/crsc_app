@@ -6,15 +6,14 @@ import { Button } from '@/components/ui/button'
 
 // Document type labels for display
 const DOCUMENT_TYPE_LABELS: Record<string, string> = {
-  va_decision_letter: 'VA Decision Letter',
-  va_code_sheet: 'VA Code Sheet',
+  va_decision_letter: 'VA Rating Decision Letter / Code Sheet',
   dd214: 'DD214',
   medical_records: 'Medical Records',
 }
 
 const MAX_FILES = 10
 
-export type DocumentType = 'va_decision_letter' | 'va_code_sheet' | 'dd214' | 'medical_records'
+export type DocumentType = 'va_decision_letter' | 'dd214' | 'medical_records'
 
 // Re-export for convenience
 export type { ExtractedDocumentData } from '@/lib/api'
@@ -349,7 +348,7 @@ export default function ChatDropzone({
 
 // Helper function to merge extracted data from multiple documents
 function mergeExtractedData(dataArray: ExtractedDocumentData[], documentType: DocumentType): ExtractedDocumentData {
-  if (documentType === 'va_decision_letter' || documentType === 'va_code_sheet') {
+  if (documentType === 'va_decision_letter') {
     // Merge disabilities from all documents
     const allDisabilities: Array<{
       title?: string
@@ -387,31 +386,20 @@ function mergeExtractedData(dataArray: ExtractedDocumentData[], documentType: Do
       )
     })
 
-    if (documentType === 'va_decision_letter') {
-      return {
-        disabilities: uniqueDisabilities as Array<{
-          title: string
-          diagnosticCode?: string
-          percentage: number
-          effectiveDate?: string
-          bodyPart?: string
-        }>,
-        combinedRating,
-        decisionDate,
-        vaFileNumber,
-      }
-    } else {
-      return {
-        disabilities: uniqueDisabilities as Array<{
-          diagnosticCode: string
-          description: string
-          percentage: number
-        }>,
-        combinedRating,
-      }
+    return {
+      disabilities: uniqueDisabilities as Array<{
+        title: string
+        diagnosticCode?: string
+        percentage: number
+        effectiveDate?: string
+        bodyPart?: string
+      }>,
+      combinedRating,
+      decisionDate,
+      vaFileNumber,
     }
   }
 
-  // For DD214, just return the last one (there should typically only be one)
+  // For DD214 and medical_records, just return the last one (there should typically only be one)
   return dataArray[dataArray.length - 1]
 }
