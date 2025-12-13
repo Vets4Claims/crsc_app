@@ -15,6 +15,7 @@ import {
   deleteDocument,
   getPacketStatus,
   updatePacketStep,
+  resetPacketStatus,
 } from '@/lib/api'
 import type { Database } from '@/types/database'
 
@@ -247,6 +248,19 @@ export function useFormData(userId: string | undefined) {
     [userId]
   )
 
+  // Reset all progress (packet status)
+  const resetProgress = useCallback(async () => {
+    if (!userId) return { success: false, error: 'Not authenticated' }
+
+    const result = await resetPacketStatus(userId)
+    if (result.error) {
+      return { success: false, error: result.error }
+    }
+
+    setState((prev) => ({ ...prev, packetStatus: [] }))
+    return { success: true }
+  }, [userId])
+
   // Calculate progress
   const calculateProgress = useCallback(() => {
     const steps = [
@@ -316,6 +330,7 @@ export function useFormData(userId: string | undefined) {
     addDocument,
     removeDocument,
     setStepStatus,
+    resetProgress,
     calculateProgress,
     isSectionComplete,
   }

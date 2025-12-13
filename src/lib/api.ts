@@ -206,6 +206,11 @@ export async function updatePacketStep(
   return callDbProxy<Tables['packet_status']['Row']>('upsert_packet_status', userId, { step_name: stepName, step_status: status })
 }
 
+export async function resetPacketStatus(userId: string): Promise<ApiResponse<null>> {
+  await callDbProxy<{ success: boolean }>('reset_packet_status', userId)
+  return { data: null, error: null }
+}
+
 // Payments API - handled by edge function
 export async function getPayments(userId: string): Promise<ApiResponse<Tables['payments']['Row'][]>> {
   const { data, error } = await supabase

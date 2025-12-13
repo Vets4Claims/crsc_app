@@ -343,6 +343,14 @@ serve(async (req: Request) => {
         break
       }
 
+      case 'reset_packet_status': {
+        await db.queryObject`
+          DELETE FROM packet_status WHERE user_id = ${userId}
+        `
+        result = { success: true }
+        break
+      }
+
       default:
         await db.end()
         return new Response(

@@ -126,7 +126,7 @@ export default function Chat() {
     messagesEndRef,
     historyLoaded,
   } = useChat(user?.id)
-  const { calculateProgress, packetStatus } = useFormData(user?.id)
+  const { calculateProgress, packetStatus, resetProgress } = useFormData(user?.id)
 
   const [inputValue, setInputValue] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
@@ -281,20 +281,22 @@ export default function Chat() {
                             </p>
                             <ul className="list-disc list-inside space-y-1 text-sm">
                               <li>Delete your entire chat history with the AI assistant</li>
+                              <li>Reset your application progress to 0%</li>
                               <li>Start a new conversation from the beginning</li>
-                              <li>Require you to re-answer eligibility questions</li>
+                              <li>Require you to re-verify eligibility and re-answer questions</li>
                             </ul>
                             <p className="font-medium text-foreground pt-2">
-                              Note: Your saved application data (personal info, military service, etc.) will NOT be deleted.
+                              Note: Your saved form data (personal info, military service, VA disability info, etc.) will NOT be deleted - only your progress tracking and chat history will be reset.
                             </p>
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
                           <AlertDialogCancel>Cancel</AlertDialogCancel>
                           <AlertDialogAction
-                            onClick={() => {
+                            onClick={async () => {
                               initialMessageSent.current = false
-                              clearMessages()
+                              await clearMessages()
+                              await resetProgress()
                             }}
                             className="bg-amber-600 hover:bg-amber-700"
                           >
