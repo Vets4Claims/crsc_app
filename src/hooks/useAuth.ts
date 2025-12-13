@@ -42,8 +42,11 @@ export function useAuth() {
 
   // Function to check admin status (non-blocking)
   const checkAdminStatus = useCallback(async (userId: string) => {
+    console.log('checkAdminStatus called with userId:', userId)
     try {
       const result = await getUserProfile(userId)
+      console.log('getUserProfile result:', result)
+      console.log('is_admin value:', result.data?.is_admin)
       if (result.data) {
         setState((prev) => ({
           ...prev,
@@ -75,8 +78,11 @@ export function useAuth() {
 
         // Check verification and admin status in background (non-blocking)
         if (session?.user) {
+          console.log('Session user found, checking statuses for:', session.user.id)
           checkVerificationStatus(session.user.id)
           checkAdminStatus(session.user.id)
+        } else {
+          console.log('No session user found')
         }
       } catch (err) {
         if (!isMounted) return

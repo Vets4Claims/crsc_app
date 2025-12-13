@@ -1,5 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuthContext } from '@/contexts/AuthContext'
+import { useDevMode } from '@/contexts/DevModeContext'
 import { useFormData } from '@/hooks/useFormData'
 import { APPLICATION_STEPS } from '@/lib/constants'
 import { Button } from '@/components/ui/button'
@@ -14,6 +15,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { Switch } from '@/components/ui/switch'
 import {
   Shield,
   User,
@@ -30,6 +32,7 @@ import {
   AlertCircle,
   Loader2,
   AlertTriangle,
+  Code,
 } from 'lucide-react'
 
 const stepIcons: Record<string, typeof CheckCircle> = {
@@ -46,7 +49,8 @@ const stepIcons: Record<string, typeof CheckCircle> = {
 
 export default function Dashboard() {
   const navigate = useNavigate()
-  const { user, signOut, isVeteranVerified } = useAuthContext()
+  const { user, signOut, isVeteranVerified, isAdmin } = useAuthContext()
+  const { devMode, toggleDevMode } = useDevMode()
   const { packetStatus, loading, calculateProgress } = useFormData(user?.id)
 
   const progress = calculateProgress()
@@ -130,6 +134,28 @@ export default function Dashboard() {
                 </div>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
+              {isAdmin && (
+                <>
+                  <DropdownMenuItem
+                    onSelect={(e) => {
+                      e.preventDefault()
+                      toggleDevMode()
+                    }}
+                    className="flex items-center justify-between"
+                  >
+                    <div className="flex items-center">
+                      <Code className="mr-2 h-4 w-4" />
+                      Dev Mode
+                    </div>
+                    <Switch
+                      checked={devMode}
+                      onCheckedChange={toggleDevMode}
+                      className="ml-2"
+                    />
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                </>
+              )}
               <DropdownMenuItem onClick={handleSignOut}>
                 <LogOut className="mr-2 h-4 w-4" />
                 Sign Out

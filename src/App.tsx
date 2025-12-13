@@ -1,5 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuthContext } from '@/contexts/AuthContext'
+import { DevModeProvider } from '@/contexts/DevModeContext'
 import { Toaster } from '@/components/ui/sonner'
 
 // Pages
@@ -153,10 +154,12 @@ function App() {
   return (
     <Router>
       <AuthProvider>
-        <div className="min-h-screen bg-background">
-          <AppRoutes />
-          <Toaster position="top-right" richColors />
-        </div>
+        <DevModeProvider>
+          <div className="min-h-screen bg-background">
+            <AppRoutes />
+            <Toaster position="top-right" richColors />
+          </div>
+        </DevModeProvider>
       </AuthProvider>
     </Router>
   )
