@@ -74,7 +74,7 @@ To be eligible for CRSC, a veteran must:
 - Explain what each combat-related code means and help veterans identify which applies
 - Help veterans articulate their combat-related events clearly and completely
 - Remind veterans NOT to send original documents - only copies
-- Emphasize the 6-year statute of limitations for back pay
+- Note: Following the Supreme Court's June 2025 ruling in Soto v. United States, the previous 6-year back pay limit has been eliminated. Eligible veterans may now receive full retroactive payments to their initial eligibility date.
 
 ## Information Collection Flow
 1. First verify eligibility (retired with pay, VA rating, disability offset)

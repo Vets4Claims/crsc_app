@@ -129,14 +129,15 @@ const onboardingSteps = [
     description: 'Key things to remember',
     content: (
       <div className="space-y-6">
-        <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
+        <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
           <div className="flex gap-3">
-            <AlertTriangle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
+            <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
             <div>
-              <p className="font-medium text-amber-800">6-Year Back Pay Limit</p>
-              <p className="text-sm text-amber-700 mt-1">
-                CRSC back pay is limited to 6 years from your application date. The sooner you file,
-                the more potential back pay you may receive.
+              <p className="font-medium text-green-800">Full Retroactive Pay Now Available</p>
+              <p className="text-sm text-green-700 mt-1">
+                Following the Supreme Court's June 2025 ruling in Soto v. United States, the previous
+                6-year back pay limit has been eliminated. You may now receive full retroactive payments
+                to your initial eligibility date.
               </p>
             </div>
           </div>

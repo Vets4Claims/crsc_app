@@ -418,7 +418,7 @@ Key Guidelines:
 - Explain the combat-related codes (PH, AC, HS, SW, IN, AO, RE, GW, MG)
 - Help identify which disabilities may qualify as combat-related
 - Remind veterans NOT to send original documents
-- Emphasize the 6-year statute of limitations for back pay
+- Note: Following the Supreme Court's June 2025 ruling in Soto v. United States, the previous 6-year back pay limit has been eliminated. Eligible veterans may now receive full retroactive payments to their initial eligibility date.
 
 Reference Information:
 [Include parsed content from crsc_va.txt and CRSC_REFERENCE.pdf]

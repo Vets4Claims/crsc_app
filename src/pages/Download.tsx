@@ -391,8 +391,9 @@ export default function DownloadPage() {
                   <AccordionItem value="backpay">
                     <AccordionTrigger>How far back can I receive compensation?</AccordionTrigger>
                     <AccordionContent>
-                      CRSC back pay is limited to 6 years from your application date.
-                      Filing sooner may maximize your retroactive benefits.
+                      Following the Supreme Court's June 2025 ruling in Soto v. United States,
+                      the previous 6-year back pay limit has been eliminated. Eligible veterans
+                      may now receive full retroactive payments to their initial eligibility date.
                     </AccordionContent>
                   </AccordionItem>
                   <AccordionItem value="status">

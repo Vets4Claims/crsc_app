@@ -327,9 +327,10 @@ export default function Dashboard() {
               <div>
                 <h4 className="font-semibold text-amber-800">Important Reminder</h4>
                 <p className="text-sm text-amber-700 mt-1">
-                  CRSC back pay is limited to 6 years from your application date. Filing sooner
-                  may maximize your retroactive benefits. Remember: Do NOT send original documents
-                  with your application - always send copies.
+                  Following the Supreme Court's June 2025 ruling in Soto v. United States, the previous
+                  6-year back pay limit has been eliminated. Eligible veterans may now receive full
+                  retroactive payments to their initial eligibility date. Remember: Do NOT send original
+                  documents with your application - always send copies.
                 </p>
               </div>
             </div>

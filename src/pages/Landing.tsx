@@ -93,11 +93,11 @@ export default function Landing() {
             <Card>
               <CardHeader>
                 <Clock className="h-10 w-10 text-primary mb-2" />
-                <CardTitle>Up to 6 Years Back Pay</CardTitle>
+                <CardTitle>Full Retroactive Pay</CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-muted-foreground">
-                  Eligible veterans may receive retroactive payments up to 6 years from the filing date.
+                  Following the 2025 Supreme Court ruling, eligible veterans may now receive full retroactive payments to their initial eligibility date.
                 </p>
               </CardContent>
             </Card>
