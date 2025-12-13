@@ -7,7 +7,7 @@ const corsHeaders = {
 
 // ID.me OAuth configuration
 // Using groups.id.me for group verification (military/veteran)
-const IDME_AUTHORIZATION_URL = 'https://groups.id.me/oauth/authorize'
+const IDME_AUTHORIZATION_URL = 'https://groups.id.me/'
 
 interface AuthRequest {
   userId: string
