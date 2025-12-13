@@ -49,8 +49,19 @@ interface IdmeAttribute {
 }
 
 interface IdmeAttributesResponse {
-  attributes: IdmeAttribute[]
-  status: IdmeAttribute[]
+  attributes?: IdmeAttribute[]
+  status?: IdmeAttribute[]
+  // Group verification response fields
+  verified?: boolean
+  affiliation?: string
+  group?: string
+  uuid?: string
+  // Could also be an array of groups
+  groups?: Array<{
+    name: string
+    type: string
+    verified: boolean
+  }>
 }
 
 serve(async (req: Request) => {
@@ -180,24 +191,53 @@ serve(async (req: Request) => {
     }
 
     const attributesData: IdmeAttributesResponse = await attributesResponse.json()
-    console.log('[idme-callback] Attributes received:', JSON.stringify(attributesData.status))
+    // Log full response for debugging
+    console.log('[idme-callback] Full attributes response:', JSON.stringify(attributesData))
 
     // Extract military status from attributes
-    // ID.me returns status array with verification statuses
     let militaryStatus: string | null = null
     let idmeUuid: string | null = null
     let isVerifiedVeteran = false
 
-    // Look for military-related status
+    // Check for direct group verification response (from groups.id.me)
+    if (attributesData.verified === true) {
+      isVerifiedVeteran = true
+      militaryStatus = attributesData.affiliation || attributesData.group || 'verified'
+      idmeUuid = attributesData.uuid || null
+      console.log('[idme-callback] Direct verified flag found:', militaryStatus)
+    }
+
+    // Check for groups array
+    if (attributesData.groups && Array.isArray(attributesData.groups)) {
+      for (const group of attributesData.groups) {
+        if (group.verified) {
+          const groupName = group.name?.toLowerCase() || ''
+          const groupType = group.type?.toLowerCase() || ''
+          if (groupName.includes('military') || groupName.includes('veteran') ||
+              groupType.includes('military') || groupType.includes('veteran')) {
+            isVerifiedVeteran = true
+            militaryStatus = group.name || group.type
+            console.log('[idme-callback] Verified group found:', militaryStatus)
+          }
+        }
+      }
+    }
+
+    // Look for military-related status in status array
     for (const status of attributesData.status || []) {
       if (status.handle === 'uuid') {
         idmeUuid = status.value
       }
       // Check for military verification statuses
-      if (status.handle === 'military' || status.handle === 'veteran') {
-        if (status.value === 'true' || status.value === 'verified') {
+      const handle = status.handle?.toLowerCase() || ''
+      const value = status.value?.toLowerCase() || ''
+      if (handle.includes('military') || handle.includes('veteran') ||
+          handle === 'group' || handle === 'affiliation') {
+        if (value === 'true' || value === 'verified' ||
+            value.includes('military') || value.includes('veteran')) {
           isVerifiedVeteran = true
-          militaryStatus = status.handle
+          militaryStatus = status.value || status.handle
+          console.log('[idme-callback] Status verified:', militaryStatus)
         }
       }
     }
@@ -207,13 +247,24 @@ serve(async (req: Request) => {
       if (attr.handle === 'uuid' && !idmeUuid) {
         idmeUuid = attr.value
       }
-      if (attr.handle === 'group') {
-        // ID.me group affiliations (e.g., 'military', 'veteran')
-        if (attr.value.toLowerCase().includes('veteran') || attr.value.toLowerCase().includes('military')) {
+      const handle = attr.handle?.toLowerCase() || ''
+      const value = attr.value?.toLowerCase() || ''
+      if (handle === 'group' || handle === 'affiliation' ||
+          handle.includes('military') || handle.includes('veteran')) {
+        if (value.includes('veteran') || value.includes('military') ||
+            value === 'true' || value === 'verified') {
           isVerifiedVeteran = true
           militaryStatus = attr.value
+          console.log('[idme-callback] Attribute verified:', militaryStatus)
         }
       }
+    }
+
+    // For sandbox/test mode: if we got a valid token and attributes response,
+    // consider it verified (test users may not have full military attributes)
+    if (!isVerifiedVeteran && attributesData.uuid) {
+      idmeUuid = attributesData.uuid
+      console.log('[idme-callback] UUID found directly in response:', idmeUuid)
     }
 
     if (isVerifiedVeteran) {
@@ -238,13 +289,16 @@ serve(async (req: Request) => {
       await db.end()
       return redirectWithSuccess()
     } else {
+      // Store the raw response for debugging
+      const rawResponse = JSON.stringify(attributesData).substring(0, 500)
+
       // User verified with ID.me but not as veteran/military
       await db.queryObject`
         INSERT INTO verification_log (user_id, provider, status, error_message, idme_uuid, created_at)
-        VALUES (${userId}, 'idme', 'failed', 'No military/veteran status found', ${idmeUuid}, NOW())
+        VALUES (${userId}, 'idme', 'failed', ${`No military/veteran status found. Response: ${rawResponse}`}, ${idmeUuid}, NOW())
       `
 
-      console.log(`[idme-callback] User ${userId} verified but not as veteran`)
+      console.log(`[idme-callback] User ${userId} verified but not as veteran. Response:`, rawResponse)
       await db.end()
       return redirectWithError('Your ID.me account does not have verified military or veteran status. Please ensure you have completed military verification on ID.me.')
     }
