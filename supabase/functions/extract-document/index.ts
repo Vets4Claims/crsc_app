@@ -117,48 +117,62 @@ serve(async (req: Request) => {
       )
     }
 
-    console.log(`[extract-document] Processing ${documentType} for user ${userId}, mimeType: ${mimeType}`)
+    console.log(`[extract-document] Processing ${documentType} for user ${userId}, mimeType: ${mimeType}, base64 length: ${fileBase64.length}`)
 
     // Initialize Anthropic client
     const anthropic = new Anthropic({
       apiKey: Deno.env.get('ANTHROPIC_API_KEY'),
     })
 
-    // Determine media type for Claude
-    let mediaType: 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp'
-
-    if (mimeType === 'application/pdf') {
-      // For PDFs, we'll treat the base64 as-is and let Claude handle it
-      // Claude's vision API can process PDFs directly when sent as base64
-      mediaType = 'image/png' // Fallback, though we'll handle PDF specially
-    } else {
-      mediaType = mimeType as 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp'
-    }
-
     // Get the extraction prompt for this document type
     const extractionPrompt = EXTRACTION_PROMPTS[documentType]
 
-    // Call Claude with vision
+    // Build the content array based on file type
+    // Claude supports PDFs directly with type: 'document'
+    let contentArray: Anthropic.MessageCreateParams['messages'][0]['content']
+
+    if (mimeType === 'application/pdf') {
+      // Use document type for PDFs
+      contentArray = [
+        {
+          type: 'document',
+          source: {
+            type: 'base64',
+            media_type: 'application/pdf',
+            data: fileBase64,
+          },
+        },
+        {
+          type: 'text',
+          text: extractionPrompt,
+        },
+      ]
+    } else {
+      // Use image type for images
+      contentArray = [
+        {
+          type: 'image',
+          source: {
+            type: 'base64',
+            media_type: mimeType as 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp',
+            data: fileBase64,
+          },
+        },
+        {
+          type: 'text',
+          text: extractionPrompt,
+        },
+      ]
+    }
+
+    // Call Claude with vision/document
     const response = await anthropic.messages.create({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 4000,
       messages: [
         {
           role: 'user',
-          content: [
-            {
-              type: 'image',
-              source: {
-                type: 'base64',
-                media_type: mediaType,
-                data: fileBase64,
-              },
-            },
-            {
-              type: 'text',
-              text: extractionPrompt,
-            },
-          ],
+          content: contentArray,
         },
       ],
     })
