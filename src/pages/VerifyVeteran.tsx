@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate, useSearchParams, Link } from 'react-router-dom'
 import { useAuthContext } from '@/contexts/AuthContext'
-import { initiateIdmeVerification, getVerificationStatus } from '@/lib/api'
+import { getVerificationStatus } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
@@ -10,16 +10,20 @@ import {
   CheckCircle,
   AlertTriangle,
   Loader2,
-  ExternalLink,
   ArrowRight,
 } from 'lucide-react'
+
+// ID.me configuration
+const IDME_CLIENT_ID = 'd0c3d09a2b5383c04d21f3e9cf1b5f87'
+const IDME_REDIRECT_URI = 'https://frilhvlgzihlowulyrnw.supabase.co/functions/v1/idme-callback'
+const IDME_SCOPES = 'employee,government,military'
 
 export default function VerifyVeteran() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  const { user } = useAuthContext()
+  const { user, refreshVerificationStatus } = useAuthContext()
+  const idmeButtonRef = useRef<HTMLDivElement>(null)
 
-  const [isLoading, setIsLoading] = useState(false)
   const [isCheckingStatus, setIsCheckingStatus] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isVerified, setIsVerified] = useState(false)
@@ -57,32 +61,54 @@ export default function VerifyVeteran() {
     if (success === 'true') {
       setIsVerified(true)
       setIsCheckingStatus(false)
+      // Refresh auth context verification status
+      refreshVerificationStatus()
     } else if (callbackError) {
       setError(decodeURIComponent(callbackError))
       setIsCheckingStatus(false)
     }
-  }, [success, callbackError])
+  }, [success, callbackError, refreshVerificationStatus])
 
-  const handleVerifyClick = async () => {
-    if (!user?.id) return
+  // Generate ID.me authorization URL with state parameter containing userId
+  const getIdmeAuthUrl = useCallback(() => {
+    if (!user?.id) return null
 
-    setIsLoading(true)
-    setError(null)
+    // Generate state with userId for callback identification
+    const state = btoa(JSON.stringify({ userId: user.id, csrf: crypto.randomUUID() }))
 
-    const result = await initiateIdmeVerification(user.id)
+    const params = new URLSearchParams({
+      client_id: IDME_CLIENT_ID,
+      redirect_uri: IDME_REDIRECT_URI,
+      response_type: 'code',
+      scopes: IDME_SCOPES,
+      state: state,
+    })
 
-    if (result.error) {
-      setError(result.error)
-      setIsLoading(false)
-      return
+    return `https://groups.id.me/?${params.toString()}`
+  }, [user?.id])
+
+  // Load ID.me button script
+  useEffect(() => {
+    if (isVerified || isCheckingStatus) return
+
+    // Load the ID.me wallet button script for styling
+    const script = document.createElement('script')
+    script.src = 'https://s3.amazonaws.com/idme/developer/idme-buttons/assets/js/idme-wallet-button.js'
+    script.async = true
+    document.body.appendChild(script)
+
+    return () => {
+      const existingScript = document.querySelector(`script[src="${script.src}"]`)
+      if (existingScript) {
+        document.body.removeChild(existingScript)
+      }
     }
+  }, [isVerified, isCheckingStatus])
 
-    if (result.data?.authorizationUrl) {
-      // Redirect to ID.me
-      window.location.href = result.data.authorizationUrl
-    } else {
-      setError('Failed to get verification URL')
-      setIsLoading(false)
+  const handleVerifyClick = () => {
+    const authUrl = getIdmeAuthUrl()
+    if (authUrl) {
+      window.location.href = authUrl
     }
   }
 
@@ -194,25 +220,23 @@ export default function VerifyVeteran() {
                 </div>
               </div>
 
-              <div className="flex flex-col gap-3">
-                <Button
+              <div className="flex flex-col gap-3 items-center">
+                {/* ID.me Official Button Widget */}
+                <div
+                  ref={idmeButtonRef}
                   onClick={handleVerifyClick}
-                  disabled={isLoading}
-                  size="lg"
-                  className="w-full"
+                  className="cursor-pointer"
                 >
-                  {isLoading ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Connecting to ID.me...
-                    </>
-                  ) : (
-                    <>
-                      Verify with ID.me
-                      <ExternalLink className="ml-2 h-4 w-4" />
-                    </>
-                  )}
-                </Button>
+                  <span
+                    id="idme-wallet-button"
+                    data-scope={IDME_SCOPES}
+                    data-client-id={IDME_CLIENT_ID}
+                    data-redirect={IDME_REDIRECT_URI}
+                    data-response="code"
+                    data-text="Verify your military status with ID.me"
+                    data-show-verify="true"
+                  />
+                </div>
 
                 <Button
                   variant="ghost"
