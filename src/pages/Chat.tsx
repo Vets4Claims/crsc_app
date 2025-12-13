@@ -218,10 +218,10 @@ export default function Chat() {
         setCompletedUploads((prev) => new Set(prev).add(`${lastAssistantMessage.id}-${documentType}`))
       }
 
-      // Send the extracted data to the chat handler as a special message
-      // The chat handler will recognize this format and present it conversationally
+      // Send the extracted data to the chat handler as a hidden message
+      // The JSON won't be shown to the user, but the AI will receive it and present it nicely
       const extractedDataMessage = `[EXTRACTED_DATA:${documentType}]${JSON.stringify(data)}`
-      await sendMessage(extractedDataMessage)
+      await sendMessage(extractedDataMessage, { hidden: true })
     },
     [messages, sendMessage]
   )

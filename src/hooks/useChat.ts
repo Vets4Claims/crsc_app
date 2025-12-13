@@ -66,24 +66,29 @@ export function useChat(userId: string | undefined) {
   }, [state.messages])
 
   const sendMessage = useCallback(
-    async (content: string) => {
+    async (content: string, options?: { hidden?: boolean; displayContent?: string }) => {
       if (!userId || !content.trim()) return
 
-      console.log('[useChat] Sending message:', content)
+      const isHidden = options?.hidden ?? false
+      const displayContent = options?.displayContent
+
+      console.log('[useChat] Sending message:', isHidden ? '[HIDDEN]' : content)
       setState((prev) => ({ ...prev, isLoading: true, error: null }))
 
-      // Add user message to state
-      const userMessage: Message = {
-        id: crypto.randomUUID(),
-        role: 'user',
-        content,
-        timestamp: new Date(),
-      }
+      // Add user message to state (unless hidden)
+      if (!isHidden) {
+        const userMessage: Message = {
+          id: crypto.randomUUID(),
+          role: 'user',
+          content: displayContent || content,
+          timestamp: new Date(),
+        }
 
-      setState((prev) => ({
-        ...prev,
-        messages: [...prev.messages, userMessage],
-      }))
+        setState((prev) => ({
+          ...prev,
+          messages: [...prev.messages, userMessage],
+        }))
+      }
 
       // Prepare conversation history for API
       const conversationHistory = state.messages.map((m) => ({
