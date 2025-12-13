@@ -112,11 +112,11 @@ export default function Chat() {
     clearMessages,
     clearError,
     messagesEndRef,
+    historyLoaded,
   } = useChat(user?.id)
   const { calculateProgress, packetStatus } = useFormData(user?.id)
 
   const [inputValue, setInputValue] = useState('')
-  const [historyLoaded, setHistoryLoaded] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
   const initialMessageSent = useRef(false)
 
@@ -127,17 +127,9 @@ export default function Chat() {
     inputRef.current?.focus()
   }, [])
 
-  // Track when history has been loaded
-  useEffect(() => {
-    // Give time for history to load
-    const timer = setTimeout(() => {
-      setHistoryLoaded(true)
-    }, 500)
-    return () => clearTimeout(timer)
-  }, [])
-
   useEffect(() => {
     // Send initial greeting only after history has been loaded and if no messages exist
+    // This ensures we don't send "Hello" when user already has conversation history
     if (historyLoaded && messages.length === 0 && user?.id && !initialMessageSent.current) {
       initialMessageSent.current = true
       sendMessage('Hello, I need help filing for CRSC benefits.')

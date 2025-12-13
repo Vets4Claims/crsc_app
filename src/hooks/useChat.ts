@@ -18,6 +18,7 @@ interface ChatState {
   currentStep: string
   isLoading: boolean
   error: string | null
+  historyLoaded: boolean
 }
 
 export function useChat(userId: string | undefined) {
@@ -26,6 +27,7 @@ export function useChat(userId: string | undefined) {
     currentStep: 'eligibility',
     isLoading: false,
     error: null,
+    historyLoaded: false,
   })
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -41,14 +43,17 @@ export function useChat(userId: string | undefined) {
       if (result.error) {
         console.error('[useChat] Error loading chat history:', result.error)
       }
-      if (result.data) {
+      if (result.data && result.data.length > 0) {
         const messages: Message[] = result.data.map((m) => ({
           id: m.id,
           role: m.role as 'user' | 'assistant',
           content: m.message,
           timestamp: new Date(m.created_at),
         }))
-        setState((prev) => ({ ...prev, messages }))
+        setState((prev) => ({ ...prev, messages, historyLoaded: true }))
+      } else {
+        // No history found, but still mark as loaded
+        setState((prev) => ({ ...prev, historyLoaded: true }))
       }
     }
 
