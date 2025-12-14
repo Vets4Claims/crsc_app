@@ -382,6 +382,9 @@ serve(async (req: Request) => {
   try {
     const { userId, message, conversationHistory } = await req.json() as ChatRequest
 
+    // Check if client wants streaming (via Accept header)
+    const wantsStreaming = req.headers.get('Accept')?.includes('text/event-stream')
+
     if (!userId || !message) {
       return new Response(
         JSON.stringify({ error: 'Missing required fields' }),
@@ -440,7 +443,165 @@ serve(async (req: Request) => {
     // Add the new user message
     messages.push({ role: 'user', content: message })
 
-    // Call Claude with tools - loop until we get a final response
+    // Save user message to chat history immediately
+    await db.queryObject`
+      INSERT INTO chat_history (user_id, message, role, created_at)
+      VALUES (${userId}, ${message}, 'user', NOW())
+    `
+
+    // If client wants streaming, use SSE
+    if (wantsStreaming) {
+      // Create a ReadableStream for SSE
+      const stream = new ReadableStream({
+        async start(controller) {
+          const encoder = new TextEncoder()
+          let fullResponse = ''
+          let continueLoop = true
+
+          // Helper to send SSE event
+          const sendEvent = (data: string) => {
+            controller.enqueue(encoder.encode(`data: ${data}\n\n`))
+          }
+
+          try {
+            while (continueLoop) {
+              // Use streaming API
+              const streamResponse = anthropic.messages.stream({
+                model: 'claude-sonnet-4-20250514',
+                max_tokens: 4000,
+                system: SYSTEM_PROMPT + (userContext ? `\n\n## Current User Context${userContext}` : ''),
+                tools: tools,
+                messages: messages,
+              })
+
+              // Track tool calls in this response
+              const toolCalls: Array<{ id: string; name: string; input: string }> = []
+              let currentToolInput = ''
+              let currentToolId = ''
+              let currentToolName = ''
+              let hasTextResponse = false
+
+              for await (const event of streamResponse) {
+                if (event.type === 'content_block_start') {
+                  if (event.content_block.type === 'text') {
+                    hasTextResponse = true
+                  } else if (event.content_block.type === 'tool_use') {
+                    currentToolId = event.content_block.id
+                    currentToolName = event.content_block.name
+                    currentToolInput = ''
+                  }
+                } else if (event.type === 'content_block_delta') {
+                  if (event.delta.type === 'text_delta') {
+                    const text = event.delta.text
+                    fullResponse += text
+                    // Send each chunk to the client
+                    sendEvent(JSON.stringify({ text }))
+                  } else if (event.delta.type === 'input_json_delta') {
+                    currentToolInput += event.delta.partial_json
+                  }
+                } else if (event.type === 'content_block_stop') {
+                  if (currentToolId && currentToolName) {
+                    toolCalls.push({
+                      id: currentToolId,
+                      name: currentToolName,
+                      input: currentToolInput,
+                    })
+                    currentToolId = ''
+                    currentToolName = ''
+                    currentToolInput = ''
+                  }
+                } else if (event.type === 'message_stop') {
+                  // Message complete
+                }
+              }
+
+              // Get the final message to check stop reason
+              const finalMessage = await streamResponse.finalMessage()
+
+              // Process any tool calls
+              if (toolCalls.length > 0) {
+                const toolResults: Anthropic.ToolResultBlockParam[] = []
+                const assistantContent: Anthropic.ContentBlock[] = []
+
+                // Add any text content first
+                if (hasTextResponse && fullResponse) {
+                  assistantContent.push({ type: 'text', text: fullResponse })
+                }
+
+                // Add tool use blocks and process them
+                for (const tool of toolCalls) {
+                  let parsedInput = {}
+                  try {
+                    parsedInput = JSON.parse(tool.input || '{}')
+                  } catch {
+                    parsedInput = {}
+                  }
+
+                  assistantContent.push({
+                    type: 'tool_use',
+                    id: tool.id,
+                    name: tool.name,
+                    input: parsedInput,
+                  })
+
+                  const result = await processToolCall(db!, userId, tool.name, parsedInput as Record<string, unknown>)
+                  toolResults.push({
+                    type: 'tool_result',
+                    tool_use_id: tool.id,
+                    content: result,
+                  })
+                }
+
+                // Add to message history for continuation
+                messages.push({ role: 'assistant', content: assistantContent })
+                messages.push({ role: 'user', content: toolResults })
+
+                // Reset for next iteration (we'll continue to get more text)
+                // Don't reset fullResponse - keep accumulating
+              }
+
+              // Check if we should continue the loop
+              if (finalMessage.stop_reason === 'end_turn' || finalMessage.stop_reason === 'stop_sequence') {
+                continueLoop = false
+              } else if (finalMessage.stop_reason !== 'tool_use') {
+                continueLoop = false
+              }
+            }
+
+            // Save the complete assistant response to chat history
+            await db!.queryObject`
+              INSERT INTO chat_history (user_id, message, role, created_at)
+              VALUES (${userId}, ${fullResponse}, 'assistant', NOW())
+            `
+
+            // Send done signal
+            sendEvent('[DONE]')
+            controller.close()
+
+            // Close database connection
+            await db!.end()
+          } catch (error) {
+            console.error('Streaming error:', error)
+            sendEvent(JSON.stringify({ error: 'Streaming failed' }))
+            controller.close()
+            if (db) {
+              try { await db.end() } catch { /* ignore */ }
+            }
+          }
+        }
+      })
+
+      return new Response(stream, {
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          'Connection': 'keep-alive',
+        }
+      })
+    }
+
+    // Non-streaming fallback (original behavior)
     let finalResponse = ''
     let continueLoop = true
 
@@ -484,11 +645,7 @@ serve(async (req: Request) => {
       }
     }
 
-    // Save messages to chat history
-    await db.queryObject`
-      INSERT INTO chat_history (user_id, message, role, created_at)
-      VALUES (${userId}, ${message}, 'user', NOW())
-    `
+    // Save assistant response to chat history
     await db.queryObject`
       INSERT INTO chat_history (user_id, message, role, created_at)
       VALUES (${userId}, ${finalResponse}, 'assistant', NOW())

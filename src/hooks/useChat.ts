@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
-import { sendChatMessage, getChatHistory, clearChatHistory } from '@/lib/api'
+import { sendChatMessageStream, getChatHistory, clearChatHistory } from '@/lib/api'
 
 export interface Message {
   id: string
@@ -19,6 +19,7 @@ interface ChatState {
   isLoading: boolean
   error: string | null
   historyLoaded: boolean
+  streamingMessageId: string | null // Track the currently streaming message
 }
 
 export function useChat(userId: string | undefined) {
@@ -28,6 +29,7 @@ export function useChat(userId: string | undefined) {
     isLoading: false,
     error: null,
     historyLoaded: false,
+    streamingMessageId: null,
   })
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -97,34 +99,66 @@ export function useChat(userId: string | undefined) {
       }))
       conversationHistory.push({ role: 'user', content })
 
-      // Send to AI
-      console.log('[useChat] Calling sendChatMessage API...')
-      const result = await sendChatMessage(userId, content, conversationHistory)
-      console.log('[useChat] API result:', result)
-
-      if (result.error) {
-        console.error('[useChat] Error from API:', result.error)
-        setState((prev) => ({
-          ...prev,
-          isLoading: false,
-          error: result.error,
-        }))
-        return
-      }
-
-      // Add assistant message
+      // Create a placeholder message for streaming
+      const streamingMessageId = crypto.randomUUID()
       const assistantMessage: Message = {
-        id: crypto.randomUUID(),
+        id: streamingMessageId,
         role: 'assistant',
-        content: result.data?.reply || 'I apologize, but I encountered an issue. Please try again.',
+        content: '',
         timestamp: new Date(),
       }
 
+      // Add the empty assistant message that will be filled with streamed content
       setState((prev) => ({
         ...prev,
         messages: [...prev.messages, assistantMessage],
-        isLoading: false,
+        streamingMessageId,
       }))
+
+      // Send to AI with streaming
+      console.log('[useChat] Calling sendChatMessageStream API...')
+
+      await sendChatMessageStream(
+        userId,
+        content,
+        conversationHistory,
+        // onChunk - called for each text chunk
+        (text: string) => {
+          setState((prev) => ({
+            ...prev,
+            messages: prev.messages.map((msg) =>
+              msg.id === streamingMessageId
+                ? { ...msg, content: msg.content + text }
+                : msg
+            ),
+          }))
+        },
+        // onComplete - called when streaming is done
+        () => {
+          console.log('[useChat] Streaming complete')
+          setState((prev) => ({
+            ...prev,
+            isLoading: false,
+            streamingMessageId: null,
+          }))
+        },
+        // onError - called on error
+        (error: string) => {
+          console.error('[useChat] Streaming error:', error)
+          setState((prev) => ({
+            ...prev,
+            isLoading: false,
+            streamingMessageId: null,
+            error: error,
+            // Update the message to show an error if it was empty
+            messages: prev.messages.map((msg) =>
+              msg.id === streamingMessageId && !msg.content
+                ? { ...msg, content: 'I apologize, but I encountered an issue. Please try again.' }
+                : msg
+            ),
+          }))
+        }
+      )
     },
     [userId, state.messages]
   )

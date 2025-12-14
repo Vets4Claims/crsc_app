@@ -74,6 +74,25 @@ const COMBAT_CODES = {
   MG: 'Mustard Gas - Exposure to mustard gas or Lewisite',
 }
 
+// Helper function to safely convert values to strings (handles Date objects)
+function toStr(value: unknown): string {
+  if (value === null || value === undefined) {
+    return ''
+  }
+  if (value instanceof Date) {
+    return value.toISOString().split('T')[0] // Format as YYYY-MM-DD
+  }
+  if (typeof value === 'object') {
+    // Handle postgres date objects or other objects
+    const dateValue = value as { toISOString?: () => string }
+    if (typeof dateValue.toISOString === 'function') {
+      return dateValue.toISOString().split('T')[0]
+    }
+    return String(value)
+  }
+  return String(value)
+}
+
 async function generateCoverLetter(
   pdfDoc: typeof PDFDocument,
   userData: any,
@@ -223,161 +242,443 @@ async function generateDD2860(
   vaDisability: any,
   claims: any[]
 ): Promise<Uint8Array> {
-  // Create a new PDF document
+  // Create a new PDF document matching official DD Form 2860 structure
   const pdfDoc = await PDFDocument.create()
   const font = await pdfDoc.embedFont(StandardFonts.Helvetica)
   const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold)
 
-  // DD Form 2860 is a multi-page form
-  // Page 1 - Basic Information
-  let page = pdfDoc.addPage([612, 792])
-  const { width, height } = page.getSize()
+  const pageWidth = 612 // Letter size
+  const pageHeight = 792
+  const margin = 40
+  const lineHeight = 14
+  const smallLineHeight = 11
 
-  let yPosition = height - 50
+  // Helper functions
+  const drawBox = (page: any, x: number, y: number, width: number, height: number) => {
+    page.drawRectangle({
+      x, y: y - height, width, height,
+      borderColor: rgb(0, 0, 0),
+      borderWidth: 0.5,
+    })
+  }
 
-  // Title
-  page.drawText('DD FORM 2860 - CLAIM FOR COMBAT-RELATED SPECIAL COMPENSATION (CRSC)', {
-    x: 50,
-    y: yPosition,
-    size: 10,
-    font: boldFont,
+  const drawLabelValue = (page: any, label: string, value: string, x: number, y: number, labelWidth: number, valueWidth: number, fontSize = 8) => {
+    // Draw label box
+    drawBox(page, x, y, labelWidth, 18)
+    page.drawText(label, { x: x + 2, y: y - 12, size: fontSize - 1, font: boldFont })
+
+    // Draw value box
+    drawBox(page, x + labelWidth, y, valueWidth, 18)
+    page.drawText(toStr(value).substring(0, Math.floor(valueWidth / 5)), { x: x + labelWidth + 2, y: y - 12, size: fontSize, font })
+  }
+
+  const drawCheckbox = (page: any, x: number, y: number, checked: boolean, label: string) => {
+    page.drawRectangle({
+      x, y: y - 10, width: 10, height: 10,
+      borderColor: rgb(0, 0, 0),
+      borderWidth: 0.5,
+    })
+    if (checked) {
+      page.drawText('X', { x: x + 2, y: y - 8, size: 8, font: boldFont })
+    }
+    page.drawText(label, { x: x + 14, y: y - 8, size: 7, font })
+  }
+
+  // ============= PAGE 1 - Header and Personal Information =============
+  let page = pdfDoc.addPage([pageWidth, pageHeight])
+  let y = pageHeight - margin
+
+  // Form header
+  page.drawText('CLAIM FOR COMBAT-RELATED SPECIAL COMPENSATION (CRSC)', {
+    x: margin, y, size: 11, font: boldFont
   })
-  yPosition -= 30
-
-  // Section 1 - Personal Information
-  page.drawText('SECTION I - PERSONAL INFORMATION', {
-    x: 50,
-    y: yPosition,
-    size: 10,
-    font: boldFont,
+  y -= 15
+  page.drawText('(Read Privacy Act Statement and Instructions before completing this form)', {
+    x: margin, y, size: 7, font
   })
-  yPosition -= 20
+  y -= 20
 
-  const fields = [
-    { label: '1. NAME (Last, First, Middle Initial)', value: `${userData?.last_name || ''}, ${userData?.first_name || ''} ${userData?.middle_initial || ''}` },
-    { label: '2. SOCIAL SECURITY NUMBER', value: userData?.ssn_encrypted ? `XXX-XX-${userData.ssn_encrypted.slice(-4)}` : '' },
-    { label: '3. DATE OF BIRTH', value: userData?.date_of_birth || '' },
-    { label: '4. RETIRED GRADE/RANK', value: militaryService?.retired_rank || '' },
-    { label: '5. BRANCH OF SERVICE', value: getBranchName(militaryService?.branch) },
-    { label: '6. RETIREMENT DATE', value: militaryService?.retirement_date || '' },
-    { label: '7. EMAIL ADDRESS', value: userData?.email || '' },
-    { label: '8. TELEPHONE NUMBER', value: userData?.phone || '' },
-    { label: '9. MAILING ADDRESS', value: `${userData?.address_line1 || ''} ${userData?.address_line2 || ''}, ${userData?.city || ''}, ${userData?.state || ''} ${userData?.zip_code || ''}` },
+  // Form number box (top right)
+  page.drawText('OMB No. 0704-0441', { x: pageWidth - margin - 100, y: pageHeight - margin, size: 7, font })
+  page.drawText('OMB approval expires', { x: pageWidth - margin - 100, y: pageHeight - margin - 10, size: 6, font })
+
+  // SECTION I - IDENTIFICATION DATA
+  page.drawRectangle({
+    x: margin, y: y - 15, width: pageWidth - 2 * margin, height: 15,
+    color: rgb(0.9, 0.9, 0.9),
+    borderColor: rgb(0, 0, 0),
+    borderWidth: 0.5,
+  })
+  page.drawText('SECTION I - IDENTIFICATION DATA', { x: margin + 5, y: y - 12, size: 9, font: boldFont })
+  y -= 20
+
+  // Row 1: Name
+  drawBox(page, margin, y, pageWidth - 2 * margin, 25)
+  page.drawText('1. NAME (Last, First, Middle Initial)', { x: margin + 2, y: y - 8, size: 7, font: boldFont })
+  page.drawText(`${userData?.last_name || ''}, ${userData?.first_name || ''} ${userData?.middle_initial || ''}`, {
+    x: margin + 5, y: y - 20, size: 10, font
+  })
+  y -= 25
+
+  // Row 2: SSN, DOB, Rank, Branch
+  const row2Width = (pageWidth - 2 * margin) / 4
+  drawBox(page, margin, y, row2Width, 25)
+  page.drawText('2. SSN OR EMPLOYEE ID', { x: margin + 2, y: y - 8, size: 6, font: boldFont })
+  page.drawText(userData?.ssn_encrypted || '___-__-____', { x: margin + 5, y: y - 20, size: 9, font })
+
+  drawBox(page, margin + row2Width, y, row2Width, 25)
+  page.drawText('3. DATE OF BIRTH (YYYYMMDD)', { x: margin + row2Width + 2, y: y - 8, size: 6, font: boldFont })
+  page.drawText(toStr(userData?.date_of_birth), { x: margin + row2Width + 5, y: y - 20, size: 9, font })
+
+  drawBox(page, margin + 2 * row2Width, y, row2Width, 25)
+  page.drawText('4. RETIRED RANK/RATE', { x: margin + 2 * row2Width + 2, y: y - 8, size: 6, font: boldFont })
+  page.drawText(militaryService?.retired_rank || '', { x: margin + 2 * row2Width + 5, y: y - 20, size: 9, font })
+
+  drawBox(page, margin + 3 * row2Width, y, row2Width, 25)
+  page.drawText('5. TELEPHONE (Include area code)', { x: margin + 3 * row2Width + 2, y: y - 8, size: 6, font: boldFont })
+  page.drawText(userData?.phone || '', { x: margin + 3 * row2Width + 5, y: y - 20, size: 9, font })
+  y -= 25
+
+  // Row 3: Email and Mailing Address
+  const halfWidth = (pageWidth - 2 * margin) / 2
+  drawBox(page, margin, y, halfWidth, 25)
+  page.drawText('6. E-MAIL ADDRESS', { x: margin + 2, y: y - 8, size: 6, font: boldFont })
+  page.drawText(userData?.email || '', { x: margin + 5, y: y - 20, size: 8, font })
+
+  drawBox(page, margin + halfWidth, y, halfWidth, 25)
+  page.drawText('7. MAILING ADDRESS (Street, City, State, ZIP)', { x: margin + halfWidth + 2, y: y - 8, size: 6, font: boldFont })
+  const address = `${userData?.address_line1 || ''} ${userData?.address_line2 || ''}, ${userData?.city || ''}, ${userData?.state || ''} ${userData?.zip_code || ''}`
+  page.drawText(address.substring(0, 50), { x: margin + halfWidth + 5, y: y - 20, size: 7, font })
+  y -= 30
+
+  // SECTION II - PRELIMINARY REQUIREMENTS
+  page.drawRectangle({
+    x: margin, y: y - 15, width: pageWidth - 2 * margin, height: 15,
+    color: rgb(0.9, 0.9, 0.9),
+    borderColor: rgb(0, 0, 0),
+    borderWidth: 0.5,
+  })
+  page.drawText('SECTION II - PRELIMINARY REQUIREMENTS (If you answer NO to ALL questions 8a-8d, you are NOT eligible for CRSC)', {
+    x: margin + 5, y: y - 12, size: 7, font: boldFont
+  })
+  y -= 20
+
+  // Eligibility questions
+  const questions = [
+    '8a. Are you entitled to military retired pay?',
+    '8b. Do you have a VA disability rating of at least 10%?',
+    '8c. Have you filed a DD Form 2860 for combat-related disabilities rated by the VA?',
+    '8d. Is your military retirement pay currently reduced due to receipt of VA disability compensation?',
   ]
 
-  for (const field of fields) {
-    page.drawText(field.label, { x: 50, y: yPosition, size: 9, font: boldFont })
-    page.drawText(field.value, { x: 250, y: yPosition, size: 9, font })
-    yPosition -= 18
+  for (const question of questions) {
+    drawBox(page, margin, y, pageWidth - 2 * margin, 18)
+    page.drawText(question, { x: margin + 5, y: y - 12, size: 7, font })
+    // Assume YES based on the fact they're applying
+    drawCheckbox(page, pageWidth - margin - 80, y - 3, true, 'YES')
+    drawCheckbox(page, pageWidth - margin - 40, y - 3, false, 'NO')
+    y -= 18
   }
-  yPosition -= 20
+  y -= 10
 
-  // Section 2 - VA Information
-  page.drawText('SECTION II - VA DISABILITY INFORMATION', {
-    x: 50,
-    y: yPosition,
-    size: 10,
-    font: boldFont,
+  // SECTION III - SERVICE HISTORY
+  page.drawRectangle({
+    x: margin, y: y - 15, width: pageWidth - 2 * margin, height: 15,
+    color: rgb(0.9, 0.9, 0.9),
+    borderColor: rgb(0, 0, 0),
+    borderWidth: 0.5,
   })
-  yPosition -= 20
+  page.drawText('SECTION III - SERVICE HISTORY', { x: margin + 5, y: y - 12, size: 9, font: boldFont })
+  y -= 20
 
-  const vaFields = [
-    { label: '10. VA FILE NUMBER', value: vaDisability?.va_file_number || '' },
-    { label: '11. COMBINED VA RATING', value: vaDisability?.current_va_rating ? `${vaDisability.current_va_rating}%` : '' },
-    { label: '12. VA DECISION DATE', value: vaDisability?.va_decision_date || '' },
+  // Branch of service
+  drawBox(page, margin, y, pageWidth - 2 * margin, 30)
+  page.drawText('9. BRANCH OF SERVICE FROM WHICH YOU RETIRED (Check one)', { x: margin + 5, y: y - 10, size: 7, font: boldFont })
+
+  const branches = [
+    { key: 'army', label: 'Army' },
+    { key: 'navy', label: 'Navy' },
+    { key: 'air_force', label: 'Air Force' },
+    { key: 'marine_corps', label: 'Marine Corps' },
+    { key: 'coast_guard', label: 'Coast Guard' },
+    { key: 'space_force', label: 'Space Force' },
   ]
-
-  for (const field of vaFields) {
-    page.drawText(field.label, { x: 50, y: yPosition, size: 9, font: boldFont })
-    page.drawText(field.value, { x: 250, y: yPosition, size: 9, font })
-    yPosition -= 18
+  let xPos = margin + 10
+  for (const branch of branches) {
+    drawCheckbox(page, xPos, y - 18, militaryService?.branch === branch.key, branch.label)
+    xPos += 80
   }
-  yPosition -= 20
+  y -= 35
 
-  // Section 3 - Disability Claims (may span multiple pages)
-  page.drawText('SECTION III - COMBAT-RELATED DISABILITY CLAIMS', {
-    x: 50,
-    y: yPosition,
-    size: 10,
-    font: boldFont,
-  })
-  yPosition -= 25
+  // Retirement date
+  drawBox(page, margin, y, halfWidth, 25)
+  page.drawText('RETIREMENT DATE', { x: margin + 2, y: y - 8, size: 6, font: boldFont })
+  page.drawText(toStr(militaryService?.retirement_date), { x: margin + 5, y: y - 20, size: 9, font })
+
+  drawBox(page, margin + halfWidth, y, halfWidth, 25)
+  page.drawText('RETIREMENT TYPE', { x: margin + halfWidth + 2, y: y - 8, size: 6, font: boldFont })
+  page.drawText(militaryService?.retirement_type || '', { x: margin + halfWidth + 5, y: y - 20, size: 9, font })
+  y -= 30
+
+  // POW question
+  drawBox(page, margin, y, pageWidth - 2 * margin, 20)
+  page.drawText('11. WERE YOU EVER A PRISONER OF WAR (POW)?', { x: margin + 5, y: y - 13, size: 7, font: boldFont })
+  drawCheckbox(page, pageWidth - margin - 80, y - 5, false, 'YES')
+  drawCheckbox(page, pageWidth - margin - 40, y - 5, true, 'NO')
+  y -= 25
+
+  // VA file number
+  drawBox(page, margin, y, pageWidth - 2 * margin, 25)
+  page.drawText('12. VA FILE NUMBER', { x: margin + 2, y: y - 8, size: 6, font: boldFont })
+  page.drawText(vaDisability?.va_file_number || '', { x: margin + 5, y: y - 20, size: 10, font })
+  y -= 30
+
+  // Footer for page 1
+  page.drawText('DD FORM 2860, JUL 2011', { x: margin, y: 25, size: 7, font })
+  page.drawText('Page 1 of ' + (Math.ceil(claims.length) + 2), { x: pageWidth - margin - 50, y: 25, size: 7, font })
+
+  // ============= PAGE 2+ - Disability Claims (Item 13) =============
+  // Each disability gets its own section on a new page or continues on same page
 
   for (let i = 0; i < claims.length; i++) {
     const claim = claims[i]
 
-    // Check if we need a new page
-    if (yPosition < 150) {
-      page = pdfDoc.addPage([612, 792])
-      yPosition = height - 50
-      page.drawText('DD FORM 2860 (Continued)', { x: 50, y: yPosition, size: 10, font: boldFont })
-      yPosition -= 30
-    }
+    // Start new page for each disability claim (matching official form)
+    page = pdfDoc.addPage([pageWidth, pageHeight])
+    y = pageHeight - margin
 
-    // Claim header
-    page.drawText(`DISABILITY ${i + 1}`, { x: 50, y: yPosition, size: 9, font: boldFont })
-    yPosition -= 15
+    // Section header
+    page.drawRectangle({
+      x: margin, y: y - 15, width: pageWidth - 2 * margin, height: 15,
+      color: rgb(0.9, 0.9, 0.9),
+      borderColor: rgb(0, 0, 0),
+      borderWidth: 0.5,
+    })
+    page.drawText(`SECTION IV - COMBAT-RELATEDNESS DETERMINATION - DISABILITY ${i + 1} of ${claims.length}`, {
+      x: margin + 5, y: y - 12, size: 9, font: boldFont
+    })
+    y -= 20
 
-    const claimFields = [
-      { label: 'Disability Title:', value: claim.disability_title || '' },
-      { label: 'Body Part Affected:', value: claim.body_part_affected || '' },
-      { label: 'VA Disability Code:', value: claim.disability_code || '' },
-      { label: 'Current Rating:', value: claim.current_rating_percentage ? `${claim.current_rating_percentage}%` : '' },
-      { label: 'Combat-Related Code:', value: `${claim.combat_related_code || ''} - ${COMBAT_CODES[claim.combat_related_code as keyof typeof COMBAT_CODES] || ''}` },
-      { label: 'Unit of Assignment:', value: claim.unit_of_assignment || '' },
-      { label: 'Location of Injury:', value: claim.location_of_injury || '' },
-      { label: 'Purple Heart:', value: claim.received_purple_heart ? 'Yes' : 'No' },
+    page.drawText('13. COMPLETE ONE ITEM 13 BLOCK FOR EACH DISABILITY RATED BY THE VA THAT YOU THINK IS COMBAT-RELATED.', {
+      x: margin, y, size: 7, font: boldFont
+    })
+    y -= 15
+
+    // 13a. VA Disability Code
+    drawBox(page, margin, y, 150, 25)
+    page.drawText('13a. VA DISABILITY CODE', { x: margin + 2, y: y - 8, size: 6, font: boldFont })
+    page.drawText(claim.disability_code || '', { x: margin + 5, y: y - 20, size: 10, font })
+
+    // 13b. Disability Description
+    drawBox(page, margin + 150, y, pageWidth - 2 * margin - 150, 25)
+    page.drawText('13b. DESCRIPTION OF DISABILITY', { x: margin + 152, y: y - 8, size: 6, font: boldFont })
+    page.drawText((claim.disability_title || '').substring(0, 50), { x: margin + 155, y: y - 20, size: 9, font })
+    y -= 25
+
+    // 13c. Rating percentage and 13d. Date awarded
+    drawBox(page, margin, y, halfWidth, 25)
+    page.drawText('13c. CURRENT VA RATING PERCENTAGE', { x: margin + 2, y: y - 8, size: 6, font: boldFont })
+    page.drawText(claim.current_rating_percentage ? `${claim.current_rating_percentage}%` : '', { x: margin + 5, y: y - 20, size: 10, font })
+
+    drawBox(page, margin + halfWidth, y, halfWidth, 25)
+    page.drawText('13d. DATE DISABILITY WAS AWARDED BY VA', { x: margin + halfWidth + 2, y: y - 8, size: 6, font: boldFont })
+    page.drawText(toStr(claim.date_awarded_by_va), { x: margin + halfWidth + 5, y: y - 20, size: 9, font })
+    y -= 25
+
+    // 13e. Initial rating
+    drawBox(page, margin, y, halfWidth, 25)
+    page.drawText('13e. INITIAL VA RATING PERCENTAGE', { x: margin + 2, y: y - 8, size: 6, font: boldFont })
+    page.drawText(claim.initial_rating_percentage ? `${claim.initial_rating_percentage}%` : '', { x: margin + 5, y: y - 20, size: 10, font })
+
+    // 13f. Body part affected
+    drawBox(page, margin + halfWidth, y, halfWidth, 25)
+    page.drawText('13f. BODY PART AFFECTED', { x: margin + halfWidth + 2, y: y - 8, size: 6, font: boldFont })
+    page.drawText((claim.body_part_affected || '').substring(0, 40), { x: margin + halfWidth + 5, y: y - 20, size: 9, font })
+    y -= 30
+
+    // 13g. Combat-related category (checkboxes)
+    drawBox(page, margin, y, pageWidth - 2 * margin, 60)
+    page.drawText('13g. CATEGORY THAT BEST DESCRIBES HOW YOUR DISABILITY IS COMBAT-RELATED (Check only ONE)', {
+      x: margin + 2, y: y - 10, size: 7, font: boldFont
+    })
+
+    const combatCategories = [
+      { code: 'PH', label: 'Purple Heart (PH)' },
+      { code: 'AC', label: 'Armed Conflict (AC)' },
+      { code: 'SW', label: 'Simulating War (SW)' },
+      { code: 'HS', label: 'Hazardous Service (HS)' },
+      { code: 'IN', label: 'Instrumentality of War (IN)' },
+      { code: 'AO', label: 'Agent Orange (AO)' },
+      { code: 'RE', label: 'Radiation Exposure (RE)' },
+      { code: 'GW', label: 'Gulf War (GW)' },
     ]
 
-    for (const field of claimFields) {
-      page.drawText(field.label, { x: 60, y: yPosition, size: 8, font: boldFont })
-      page.drawText(field.value.substring(0, 60), { x: 180, y: yPosition, size: 8, font })
-      yPosition -= 12
+    let catX = margin + 10
+    let catY = y - 25
+    for (let j = 0; j < combatCategories.length; j++) {
+      if (j === 4) { catX = margin + 10; catY -= 15 }
+      drawCheckbox(page, catX, catY, claim.combat_related_code === combatCategories[j].code, combatCategories[j].label)
+      catX += 130
     }
+    y -= 65
 
-    // Event description (truncated for form)
-    page.drawText('Event Description:', { x: 60, y: yPosition, size: 8, font: boldFont })
-    yPosition -= 12
+    // 13h. Unit of assignment
+    drawBox(page, margin, y, pageWidth - 2 * margin, 25)
+    page.drawText('13h. UNIT OF ASSIGNMENT AT THE TIME OF INJURY/ILLNESS/DISEASE/EVENT', { x: margin + 2, y: y - 8, size: 6, font: boldFont })
+    page.drawText((claim.unit_of_assignment || '').substring(0, 80), { x: margin + 5, y: y - 20, size: 9, font })
+    y -= 25
+
+    // 13i. Location
+    drawBox(page, margin, y, pageWidth - 2 * margin, 25)
+    page.drawText('13i. LOCATION/AREA OF ASSIGNMENT AT TIME OF INJURY/ILLNESS/DISEASE/EVENT', { x: margin + 2, y: y - 8, size: 6, font: boldFont })
+    page.drawText((claim.location_of_injury || '').substring(0, 80), { x: margin + 5, y: y - 20, size: 9, font })
+    y -= 30
+
+    // 13j. Description of event (multi-line)
+    drawBox(page, margin, y, pageWidth - 2 * margin, 120)
+    page.drawText('13j. EXPLANATION OF HOW DISABILITY WAS CAUSED (Provide details of combat-related incident)', {
+      x: margin + 2, y: y - 10, size: 7, font: boldFont
+    })
+
+    // Word wrap the description
     const description = claim.description_of_event || ''
-    const truncatedDesc = description.substring(0, 200) + (description.length > 200 ? '...' : '')
-    const words = truncatedDesc.split(' ')
+    const words = description.split(' ')
     let line = ''
+    let descY = y - 25
+    const maxLineWidth = pageWidth - 2 * margin - 10
+
     for (const word of words) {
-      if ((line + ' ' + word).length > 80) {
-        page.drawText(line, { x: 60, y: yPosition, size: 8, font })
-        yPosition -= 10
+      const testLine = line ? `${line} ${word}` : word
+      const textWidth = font.widthOfTextAtSize(testLine, 8)
+
+      if (textWidth > maxLineWidth) {
+        page.drawText(line, { x: margin + 5, y: descY, size: 8, font })
+        descY -= 10
         line = word
+        if (descY < y - 110) break // Stop if we run out of space
       } else {
-        line = line ? line + ' ' + word : word
+        line = testLine
       }
     }
-    if (line) {
-      page.drawText(line, { x: 60, y: yPosition, size: 8, font })
-      yPosition -= 10
+    if (line && descY >= y - 110) {
+      page.drawText(line, { x: margin + 5, y: descY, size: 8, font })
     }
+    y -= 125
 
-    yPosition -= 15
+    // 13k. Purple Heart
+    drawBox(page, margin, y, pageWidth - 2 * margin, 20)
+    page.drawText('13k. DID YOU RECEIVE A PURPLE HEART FOR THIS DISABILITY?', { x: margin + 5, y: y - 13, size: 7, font: boldFont })
+    drawCheckbox(page, pageWidth - margin - 80, y - 5, claim.received_purple_heart === true, 'YES')
+    drawCheckbox(page, pageWidth - margin - 40, y - 5, claim.received_purple_heart !== true, 'NO')
+    y -= 25
+
+    // 13l. Secondary conditions
+    drawBox(page, margin, y, pageWidth - 2 * margin, 20)
+    page.drawText('13l. ARE THERE SECONDARY CONDITIONS ASSOCIATED WITH THIS DISABILITY?', { x: margin + 5, y: y - 13, size: 7, font: boldFont })
+    drawCheckbox(page, pageWidth - margin - 80, y - 5, claim.has_secondary_conditions === true, 'YES')
+    drawCheckbox(page, pageWidth - margin - 40, y - 5, claim.has_secondary_conditions !== true, 'NO')
+    y -= 25
+
+    // Page footer
+    page.drawText('DD FORM 2860, JUL 2011', { x: margin, y: 25, size: 7, font })
+    page.drawText(`Page ${i + 2} of ${claims.length + 2}`, { x: pageWidth - margin - 50, y: 25, size: 7, font })
   }
 
-  // Signature section
-  if (yPosition < 100) {
-    page = pdfDoc.addPage([612, 792])
-    yPosition = height - 50
+  // ============= FINAL PAGE - Supporting Documents & Certification =============
+  page = pdfDoc.addPage([pageWidth, pageHeight])
+  y = pageHeight - margin
+
+  // SECTION V - Supporting Documents
+  page.drawRectangle({
+    x: margin, y: y - 15, width: pageWidth - 2 * margin, height: 15,
+    color: rgb(0.9, 0.9, 0.9),
+    borderColor: rgb(0, 0, 0),
+    borderWidth: 0.5,
+  })
+  page.drawText('SECTION V - SUPPORTING DOCUMENTS CHECKLIST', { x: margin + 5, y: y - 12, size: 9, font: boldFont })
+  y -= 20
+
+  page.drawText('14. THE FOLLOWING DOCUMENTS MUST BE SUBMITTED WITH THIS APPLICATION:', { x: margin, y, size: 8, font: boldFont })
+  y -= 15
+
+  const requiredDocs = [
+    'All available DD 214s/DD 215s',
+    'Retirement Orders',
+    'VA Rating Decision Letter(s)',
+    'VA Code Sheet(s)',
+    'Medical records specifically showing the causation of the disability',
+    'Service medical records, treatment records, or other military records that document combat-related injury',
+    'Award citations or certificates (if claiming Purple Heart)',
+  ]
+
+  for (const doc of requiredDocs) {
+    drawCheckbox(page, margin + 10, y, true, doc)
+    y -= 15
   }
+  y -= 20
 
-  yPosition -= 20
-  page.drawText('SECTION IV - CERTIFICATION', { x: 50, y: yPosition, size: 10, font: boldFont })
-  yPosition -= 20
-  page.drawText('I certify that the information provided above is true and correct to the best of my knowledge.', { x: 50, y: yPosition, size: 9, font })
-  yPosition -= 30
-  page.drawText('SIGNATURE: _________________________________', { x: 50, y: yPosition, size: 9, font })
-  page.drawText(`DATE: _____________`, { x: 350, y: yPosition, size: 9, font })
-  yPosition -= 30
-  page.drawText('PRINTED NAME: ' + `${userData?.first_name || ''} ${userData?.middle_initial || ''} ${userData?.last_name || ''}`.toUpperCase(), { x: 50, y: yPosition, size: 9, font })
+  page.drawText('NOTE: DO NOT SEND ORIGINAL DOCUMENTS. Send copies only. Original documents will not be returned.', {
+    x: margin, y, size: 8, font: boldFont, color: rgb(0.8, 0, 0)
+  })
+  y -= 30
 
-  // Footer
-  page.drawText('DD FORM 2860, NOV 2013', { x: 50, y: 30, size: 8, font })
-  page.drawText('PREVIOUS EDITIONS ARE OBSOLETE', { x: 400, y: 30, size: 8, font })
+  // SECTION VI - Certification
+  page.drawRectangle({
+    x: margin, y: y - 15, width: pageWidth - 2 * margin, height: 15,
+    color: rgb(0.9, 0.9, 0.9),
+    borderColor: rgb(0, 0, 0),
+    borderWidth: 0.5,
+  })
+  page.drawText('SECTION VI - CERTIFICATION', { x: margin + 5, y: y - 12, size: 9, font: boldFont })
+  y -= 25
+
+  const certStatements = [
+    '15a. I certify that the information provided above is true and correct to the best of my knowledge.',
+    '15b. I understand that I may be required to provide additional information or documentation.',
+    '15c. I understand that knowingly making a false statement may result in denial of benefits and legal action.',
+    '15d. I authorize the release of information necessary to process this claim.',
+  ]
+
+  for (const statement of certStatements) {
+    drawCheckbox(page, margin + 10, y, true, statement)
+    y -= 18
+  }
+  y -= 30
+
+  // Signature block
+  drawBox(page, margin, y, pageWidth - 2 * margin, 60)
+  page.drawText('SIGNATURE OF APPLICANT', { x: margin + 5, y: y - 10, size: 7, font: boldFont })
+  page.drawText('(Sign in ink after printing form)', { x: margin + 5, y: y - 20, size: 6, font })
+  y -= 25
+  page.drawLine({
+    start: { x: margin + 10, y },
+    end: { x: margin + 250, y },
+    thickness: 0.5,
+    color: rgb(0, 0, 0),
+  })
+  page.drawText('Signature', { x: margin + 100, y: y - 10, size: 7, font })
+
+  // Date signed
+  page.drawText('DATE SIGNED', { x: margin + 300, y: y + 25, size: 7, font: boldFont })
+  page.drawLine({
+    start: { x: margin + 300, y },
+    end: { x: pageWidth - margin - 10, y },
+    thickness: 0.5,
+    color: rgb(0, 0, 0),
+  })
+  page.drawText('Date', { x: margin + 380, y: y - 10, size: 7, font })
+  y -= 40
+
+  // Printed name
+  page.drawText('PRINTED NAME:', { x: margin + 10, y, size: 8, font: boldFont })
+  page.drawText(`${userData?.first_name || ''} ${userData?.middle_initial || ''} ${userData?.last_name || ''}`.toUpperCase(), {
+    x: margin + 100, y, size: 10, font
+  })
+
+  // Page footer
+  page.drawText('DD FORM 2860, JUL 2011', { x: margin, y: 25, size: 7, font })
+  page.drawText('PREVIOUS EDITIONS ARE OBSOLETE', { x: margin + 150, y: 25, size: 7, font })
+  page.drawText(`Page ${claims.length + 2} of ${claims.length + 2}`, { x: pageWidth - margin - 50, y: 25, size: 7, font })
 
   return pdfDoc.save()
 }
