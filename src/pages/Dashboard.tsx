@@ -229,7 +229,8 @@ export default function Dashboard() {
             const Icon = stepIcons[step.id] || Circle
             const isComplete = status === 'completed'
             const isInProgress = status === 'in_progress'
-            const isLocked = index > 0 && getStepStatus(APPLICATION_STEPS[index - 1].id) !== 'completed'
+            // A step is locked only if it's not complete AND the previous step isn't complete
+            const isLocked = !isComplete && index > 0 && getStepStatus(APPLICATION_STEPS[index - 1].id) !== 'completed'
 
             return (
               <Card
